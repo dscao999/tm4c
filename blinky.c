@@ -49,10 +49,11 @@
 void
 __error__(char *pcFilename, uint32_t ui32Line)
 {
-    while(1);
+	while(1);
 }
 #endif
 
+static void blink(int led, int intensity);
 //*****************************************************************************
 //
 // Blink the on-board LED.
@@ -61,53 +62,61 @@ __error__(char *pcFilename, uint32_t ui32Line)
 int
 main(void)
 {
-    volatile uint32_t ui32Loop;
+	ROM_SysCtlClockSet(SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN|SYSCTL_USE_PLL|SYSCTL_SYSDIV_2_5);
+	//
+	// Enable the GPIO port that is used for the on-board LED.
+	//
+	ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 
-    //
-    // Enable the GPIO port that is used for the on-board LED.
-    //
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+	//
+	// Check if the peripheral access is enabled.
+	//
+	while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF))
+	{
+	}
 
-    //
-    // Check if the peripheral access is enabled.
-    //
-    while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF))
-    {
-    }
+	//
+	// Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
+	// enable the GPIO pin for digital function.
+	//
+	ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1);
 
-    //
-    // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
-    // enable the GPIO pin for digital function.
-    //
-    ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
+	//
+	// Loop forever.
+	//
+	while(1)
+	{
+	blink(GPIO_PIN_1, 10); 
+	blink(GPIO_PIN_2, 100);
+	blink(GPIO_PIN_3, 10);
+	}
+}
 
-    //
-    // Loop forever.
-    //
-    while(1)
-    {
-        //
-        // Turn on the LED.
-        //
-        ROM_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
+static void blink(int led, int intensity)
+{
+	volatile uint32_t ui32Loop;
 
-        //
-        // Delay for a bit.
-        //
-        for(ui32Loop = 0; ui32Loop < 200000; ui32Loop++)
-        {
-        }
+	//
+	// Turn on the LED.
+	//
+	ROM_GPIOPinWrite(GPIO_PORTF_BASE, led, intensity);
 
-        //
-        // Turn off the LED.
-        //
-        ROM_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0x0);
+	//
+	// Delay for a bit.
+	//
+	for(ui32Loop = 0; ui32Loop < 2000000; ui32Loop++)
+	{
+	}
 
-        //
-        // Delay for a bit.
-        //
-        for(ui32Loop = 0; ui32Loop < 200000; ui32Loop++)
-        {
-        }
-    }
+	//
+	// Turn off the LED.
+	//
+	ROM_GPIOPinWrite(GPIO_PORTF_BASE, led, 0x0);
+
+	//
+	// Delay for a bit.
+	//
+	for(ui32Loop = 0; ui32Loop < 2000000; ui32Loop++)
+	{
+	}
 }
