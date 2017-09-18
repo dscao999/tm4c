@@ -88,8 +88,9 @@ main(void)
 	//
 	ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1);
 
-	ROM_SysTickIntEnable();
 	ROM_IntMasterEnable();
+	ROM_SysTickIntEnable();
+	ROM_SysTickEnable();
 	//
 	// Loop forever.
 	//
@@ -103,8 +104,6 @@ main(void)
 
 static void blink(int led, int intensity)
 {
-	volatile uint32_t ui32Loop;
-
 	//
 	// Turn on the LED.
 	//
@@ -113,9 +112,9 @@ static void blink(int led, int intensity)
 	//
 	// Delay for a bit.
 	//
-	for(ui32Loop = 0; ui32Loop < 8000000; ui32Loop++)
-	{
-	}
+	while (ticks < 10)
+		__asm__ __volatile__("wfi");
+	ticks = 1;
 
 	//
 	// Turn off the LED.
@@ -125,7 +124,7 @@ static void blink(int led, int intensity)
 	//
 	// Delay for a bit.
 	//
-	for(ui32Loop = 0; ui32Loop < 8000000; ui32Loop++)
-	{
-	}
+	while (ticks < 10)
+		__asm__ __volatile__("wfi");
+	ticks = 1;
 }
