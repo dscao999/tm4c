@@ -25,9 +25,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "inc/hw_memmap.h"
+#include "inc/tm4c123gh6pm.h"
 #include "driverlib/debug.h"
 #include "driverlib/gpio.h"
 #include "driverlib/sysctl.h"
+#include "driverlib/systick.h"
 #include "driverlib/rom.h"
 
 //*****************************************************************************
@@ -39,7 +41,7 @@
 //! access.
 //
 //*****************************************************************************
-
+volatile uint32_t ticks;
 //*****************************************************************************
 //
 // The error routine that is called if the driver library encounters an error.
@@ -62,12 +64,17 @@ static void blink(int led, int intensity);
 int
 main(void)
 {
+	ticks = 1;
+
 	ROM_SysCtlClockSet(SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN|SYSCTL_USE_PLL|SYSCTL_SYSDIV_2_5);
+
+	ROM_SysTickPeriodSet(7999999);
+	NVIC_ST_CURRENT_R = 0;
 	//
 	// Enable the GPIO port that is used for the on-board LED.
 	//
-	ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 
+	ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 	//
 	// Check if the peripheral access is enabled.
 	//
@@ -81,14 +88,16 @@ main(void)
 	//
 	ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1);
 
+	ROM_SysTickIntEnable();
+	ROM_IntMasterEnable();
 	//
 	// Loop forever.
 	//
 	while(1)
 	{
-	blink(GPIO_PIN_1, 10); 
-	blink(GPIO_PIN_2, 100);
-	blink(GPIO_PIN_3, 10);
+		blink(GPIO_PIN_1, 10); 
+		blink(GPIO_PIN_2, 100);
+		blink(GPIO_PIN_3, 10);
 	}
 }
 
@@ -104,7 +113,7 @@ static void blink(int led, int intensity)
 	//
 	// Delay for a bit.
 	//
-	for(ui32Loop = 0; ui32Loop < 2000000; ui32Loop++)
+	for(ui32Loop = 0; ui32Loop < 8000000; ui32Loop++)
 	{
 	}
 
@@ -116,7 +125,7 @@ static void blink(int led, int intensity)
 	//
 	// Delay for a bit.
 	//
-	for(ui32Loop = 0; ui32Loop < 2000000; ui32Loop++)
+	for(ui32Loop = 0; ui32Loop < 8000000; ui32Loop++)
 	{
 	}
 }

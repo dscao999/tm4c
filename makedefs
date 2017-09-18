@@ -176,3 +176,5 @@ endif
 #
 # The rule for linking the application.
 #
+%.bin: %
+	$(OBJCOPY) -O binary $^ $@

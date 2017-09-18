@@ -26,6 +26,7 @@
 #include "inc/hw_nvic.h"
 #include "inc/hw_types.h"
 
+extern volatile uint32_t ticks;
 //*****************************************************************************
 //
 // Forward declaration of the default fault handlers.
@@ -35,6 +36,7 @@ void ResetISR(void);
 static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
+static void SysTickISR(void);
 
 //*****************************************************************************
 //
@@ -48,7 +50,7 @@ extern int main(void);
 // Reserve space for the system stack.
 //
 //*****************************************************************************
-static uint32_t pui32Stack[128];
+static uint32_t pui32Stack[128] __attribute__((section("main_stack")));
 
 //*****************************************************************************
 //
@@ -75,7 +77,7 @@ void (* const g_pfnVectors[])(void) =
 	IntDefaultHandler,			// Debug monitor handler
 	0,					// Reserved
 	IntDefaultHandler,			// The PendSV handler
-	IntDefaultHandler,			// The SysTick handler
+	SysTickISR,				// The SysTick handler
 	IntDefaultHandler,			// GPIO Port A
 	IntDefaultHandler,			// GPIO Port B
 	IntDefaultHandler,			// GPIO Port C
@@ -339,4 +341,11 @@ IntDefaultHandler(void)
 	while(1)
 	{
 	}
+}
+/*
+ * System Timer of ARMv7-m
+ */
+static void SysTickISR(void)
+{
+	ticks++;
 }

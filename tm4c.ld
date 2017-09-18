@@ -43,6 +43,7 @@ SECTIONS
 	{
 		_data = .;
 		_ldata = LOADADDR (.data);
+		*(main_stack)
 		*(vtable)
 		*(.data*)
 		_edata = .;
