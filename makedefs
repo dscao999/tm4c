@@ -93,7 +93,7 @@ FPU=-mfpu=fpv4-sp-d16 -mfloat-abi=hard
 AFLAGS=-mthumb \
        ${CPU}  \
        ${FPU}  \
-       -MD
+       -MMD
 
 #
 # The flags passed to the compiler.
@@ -101,9 +101,7 @@ AFLAGS=-mthumb \
 CFLAGS=-mthumb             \
        ${CPU}              \
        ${FPU}              \
-       -ffunction-sections \
-       -fdata-sections     \
-       -MD                 \
+       -MMD                 \
        -std=c99            \
        -Wall               \
        -pedantic           \

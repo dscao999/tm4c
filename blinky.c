@@ -24,13 +24,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "inc/hw_memmap.h"
-#include "inc/tm4c123gh6pm.h"
-#include "driverlib/debug.h"
-#include "driverlib/gpio.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/systick.h"
-#include "driverlib/rom.h"
+#include "tm4c_miscs.h"
+#include "uart.h"
 
 //*****************************************************************************
 //
@@ -41,90 +36,35 @@
 //! access.
 //
 //*****************************************************************************
-volatile uint32_t ticks;
 //*****************************************************************************
 //
 // The error routine that is called if the driver library encounters an error.
 //
 //*****************************************************************************
-#ifdef DEBUG
+/*#ifdef DEBUG
 void
 __error__(char *pcFilename, uint32_t ui32Line)
 {
 	while(1);
 }
-#endif
+#endif*/
 
-static void blink(int led, int intensity);
 //*****************************************************************************
 //
 // Blink the on-board LED.
 //
 //*****************************************************************************
-int
-main(void)
+static struct uart_port uart;
+
+int main(void)
 {
-	ticks = 1;
 
-	ROM_SysCtlClockSet(SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN|SYSCTL_USE_PLL|SYSCTL_SYSDIV_2_5);
-
-	ROM_SysTickPeriodSet(7999999);
-	NVIC_ST_CURRENT_R = 0;
-	//
-	// Enable the GPIO port that is used for the on-board LED.
-	//
-
-	ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-	//
-	// Check if the peripheral access is enabled.
-	//
-	while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF))
-	{
-	}
-
-	//
-	// Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
-	// enable the GPIO pin for digital function.
-	//
-	ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1);
-
-	ROM_IntMasterEnable();
-	ROM_SysTickIntEnable();
-	ROM_SysTickEnable();
-	//
-	// Loop forever.
-	//
+	tm4c_setup();
+	uart_open(&uart, 0);
 	while(1)
 	{
-		blink(GPIO_PIN_1, 10); 
-		blink(GPIO_PIN_2, 100);
-		blink(GPIO_PIN_3, 10);
+		tm4c_ledblink(RED, 30, 20);
+		uart_write(&uart, "Hello World!\n");
 	}
-}
-
-static void blink(int led, int intensity)
-{
-	//
-	// Turn on the LED.
-	//
-	ROM_GPIOPinWrite(GPIO_PORTF_BASE, led, intensity);
-
-	//
-	// Delay for a bit.
-	//
-	while (ticks < 10)
-		__asm__ __volatile__("wfi");
-	ticks = 1;
-
-	//
-	// Turn off the LED.
-	//
-	ROM_GPIOPinWrite(GPIO_PORTF_BASE, led, 0x0);
-
-	//
-	// Delay for a bit.
-	//
-	while (ticks < 10)
-		__asm__ __volatile__("wfi");
-	ticks = 1;
+	uart_close(&uart);
 }

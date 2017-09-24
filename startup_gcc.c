@@ -26,7 +26,7 @@
 #include "inc/hw_nvic.h"
 #include "inc/hw_types.h"
 
-extern volatile uint32_t ticks;
+volatile uint32_t sys_ticks;
 //*****************************************************************************
 //
 // Forward declaration of the default fault handlers.
@@ -50,7 +50,7 @@ extern int main(void);
 // Reserve space for the system stack.
 //
 //*****************************************************************************
-static uint32_t pui32Stack[128] __attribute__((section("main_stack")));
+static uint32_t pui32Stack[128];
 
 //*****************************************************************************
 //
@@ -58,7 +58,7 @@ static uint32_t pui32Stack[128] __attribute__((section("main_stack")));
 // ensure that it ends up at physical address 0x0000.0000.
 //
 //*****************************************************************************
-__attribute__ ((section(".isr_vector")))
+__attribute__((section(".isr_vector")))
 void (* const g_pfnVectors[])(void) =
 {
 	(void (*)(void))((uint32_t)pui32Stack + sizeof(pui32Stack)),
@@ -257,19 +257,6 @@ ResetISR(void)
 	}
 
 	//
-	// Zero fill the bss segment.
-	//
-	__asm("    ldr     r0, =_bss\n"
-			"    ldr     r1, =_ebss\n"
-			"    mov     r2, #0\n"
-			"    .thumb_func\n"
-			"zero_loop:\n"
-			"        cmp     r0, r1\n"
-			"        it      lt\n"
-			"        strlt   r2, [r0], #4\n"
-			"        blt     zero_loop");
-
-	//
 	// Enable the floating-point unit.  This must be done here to handle the
 	// case where main() uses floating-point and the function prologue saves
 	// floating-point registers (which will fault if floating-point is not
@@ -347,5 +334,5 @@ IntDefaultHandler(void)
  */
 static void SysTickISR(void)
 {
-	ticks++;
+	sys_ticks++;
 }

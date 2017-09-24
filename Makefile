@@ -46,7 +46,7 @@
 #
 include makedefs
 
-CFLAGS += -DTARGET_IS_TM4C123_RB2
+CFLAGS += -DTARGET_IS_TM4C123_RB2 -DPART_TM4C123GH6PM
 LDSCRIPT = tm4c.ld
 #
 # Where to find header files that do not live in the source directory.
@@ -58,7 +58,7 @@ LDSCRIPT = tm4c.ld
 #
 all: blinky
 
-blinky: blinky.o startup_gcc.o
+blinky: blinky.o uart.o startup_gcc.o tm4c_miscs.o
 	$(LD) $(LDFLAGS) $^ -o $@
 #
 # The rule to clean out all the build products.
@@ -70,5 +70,5 @@ clean:
 # Include the automatically generated dependency files.
 #
 ifneq (${MAKECMDGOALS},clean)
--include ${wildcard *.d} __dummy__
+-include $(wildcard *.d) __dummy__
 endif

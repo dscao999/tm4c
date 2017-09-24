@@ -43,7 +43,6 @@ SECTIONS
 	{
 		_data = .;
 		_ldata = LOADADDR (.data);
-		*(main_stack)
 		*(vtable)
 		*(.data*)
 		_edata = .;
@@ -52,6 +51,7 @@ SECTIONS
 	.bss :
 	{
 		_bss = .;
+		startup_gcc.o(.bss*)
 		*(.bss*)
 		*(COMMON)
 		_ebss = .;
