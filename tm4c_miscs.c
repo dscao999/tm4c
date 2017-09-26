@@ -1,8 +1,8 @@
-#include <stdint.h>
-#include <stdbool.h>
 #include "tm4c_miscs.h"
 
-extern volatile uint32_t sys_ticks;
+const uint32_t HZ = 80000000;
+const uint32_t PERIOD = 10;
+volatile uint32_t sys_ticks;
 
 void tm4c_ledlit(enum led_type led, int ticks)
 {

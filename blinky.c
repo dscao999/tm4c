@@ -22,8 +22,6 @@
 //
 //*****************************************************************************
 
-#include <stdint.h>
-#include <stdbool.h>
 #include "tm4c_miscs.h"
 #include "uart.h"
 

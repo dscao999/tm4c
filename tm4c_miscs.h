@@ -1,5 +1,7 @@
 #ifndef TM4C_MISC_UTILS_DSCAO__
 #define TM4C_MISC_UTILS_DSCAO__
+#include <stdint.h>
+#include <stdbool.h>
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/tm4c123gh6pm.h"
@@ -11,6 +13,17 @@
 
 enum led_type {RED, BLUE, GREEN};
 extern volatile uint32_t sys_ticks;
+extern const uint32_t HZ;
+extern const uint32_t PERIOD;
+
+static inline int time_before(uint32_t cur, uint32_t tmark)
+{
+	return (int32_t)cur - (int32_t)tmark < 0;
+}
+static inline int time_after(uint32_t cur, uint32_t tmark)
+{
+	return (int32_t)cur - (int32_t)tmark > 0;
+}
 
 static inline void tm4c_setup(void)
 {
@@ -21,20 +34,22 @@ static inline void tm4c_setup(void)
 		;
 	ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1);
 
-	ROM_SysTickPeriodSet(7999999);
+	ROM_SysTickPeriodSet(HZ/PERIOD-1);
+	sys_ticks = 0;
 	NVIC_ST_CURRENT_R = 0;
 	ROM_IntMasterEnable();
 	ROM_SysTickIntEnable();
+	ROM_SysTickEnable();
 }
 
 void tm4c_ledlit(enum led_type led, int ticks);
 static inline void tm4c_delay(int ticks)
 {
-	sys_ticks = 1;
-	ROM_SysTickEnable();
-	while (sys_ticks < ticks)
+	uint32_t mark;
+
+	mark = sys_ticks + ticks;
+	while (time_before(sys_ticks, mark))
 		__asm__ __volatile__("wfi");
-	ROM_SysTickDisable();
 }
 static inline void tm4c_ledblink(enum led_type led, int on, int off)
 {

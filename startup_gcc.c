@@ -25,8 +25,8 @@
 #include <stdint.h>
 #include "inc/hw_nvic.h"
 #include "inc/hw_types.h"
+#include "tm4c_miscs.h"
 
-volatile uint32_t sys_ticks;
 //*****************************************************************************
 //
 // Forward declaration of the default fault handlers.
