@@ -22,7 +22,9 @@
 //
 //*****************************************************************************
 
+#include "miscutils.h"
 #include "tm4c_miscs.h"
+#include "tm4c_dma.h"
 #include "uart.h"
 
 //*****************************************************************************
@@ -52,17 +54,35 @@ __error__(char *pcFilename, uint32_t ui32Line)
 // Blink the on-board LED.
 //
 //*****************************************************************************
-static struct uart_port uart;
 
 int main(void)
 {
+	char mesg[80], *buf;
+	int count, len;
 
 	tm4c_setup();
-	uart_open(&uart, 0);
+	tm4c_dma_enable();
+	uart_open(&uart0, 0);
+	count = 0;
+	len = 79;
+	buf = mesg;
+	tm4c_ledblink(GREEN, 50, 10);
+	uart_write_sync(&uart0, "Hello, World! I'm coming soon.\n");
 	while(1)
 	{
-		tm4c_ledblink(RED, 30, 20);
-		uart_write(&uart, "Hello World!\n");
+		tm4c_ledblink(RED, 5, 5);
+		count = uart_read(&uart0, buf, len);
+		if (count && *(buf+count-1) == 0x0d) {
+			uart_write_sync(&uart0, "\n");
+			*(buf+count) = 0;
+			uart_write_sync(&uart0, mesg);
+			buf = mesg;
+			len = 79;
+			count = 0;
+		}
+		buf += count;
+		len -= count;
+		tm4c_ledblink(BLUE, 5, 5);
 	}
-	uart_close(&uart);
+	uart_close(&uart0);
 }

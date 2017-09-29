@@ -39,6 +39,16 @@ SECTIONS
 		_etext = .;
 	} > FLASH
 
+	.bss :
+	{
+		_bss = .;
+		startup_gcc.o(.bss*)
+		tm4c_dma.o(.bss*)
+		*(.bss*)
+		*(COMMON)
+		_ebss = .;
+	} > SRAM
+
 	.data : AT(ADDR(.text) + SIZEOF(.text))
 	{
 		_data = .;
@@ -46,14 +56,5 @@ SECTIONS
 		*(vtable)
 		*(.data*)
 		_edata = .;
-	} > SRAM
-
-	.bss :
-	{
-		_bss = .;
-		startup_gcc.o(.bss*)
-		*(.bss*)
-		*(COMMON)
-		_ebss = .;
 	} > SRAM
 }

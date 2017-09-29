@@ -58,7 +58,7 @@ LDSCRIPT = tm4c.ld
 #
 all: blinky
 
-blinky: blinky.o uart.o startup_gcc.o tm4c_miscs.o
+blinky: blinky.o uart.o startup_gcc.o tm4c_miscs.o tm4c_dma.o
 	$(LD) $(LDFLAGS) $^ -o $@
 #
 # The rule to clean out all the build products.

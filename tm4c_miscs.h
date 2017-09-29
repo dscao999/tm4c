@@ -16,32 +16,13 @@ extern volatile uint32_t sys_ticks;
 extern const uint32_t HZ;
 extern const uint32_t PERIOD;
 
-static inline int time_before(uint32_t cur, uint32_t tmark)
-{
-	return (int32_t)cur - (int32_t)tmark < 0;
-}
-static inline int time_after(uint32_t cur, uint32_t tmark)
-{
-	return (int32_t)cur - (int32_t)tmark > 0;
-}
+#define time_before(cur, tmark) \
+	((int32_t)cur - (int32_t)tmark < 0)
 
-static inline void tm4c_setup(void)
-{
-	ROM_SysCtlClockSet(SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN|SYSCTL_USE_PLL|SYSCTL_SYSDIV_2_5);
+#define time_after(cur, tmark) \
+	((int32_t)cur - (int32_t)tmark > 0)
 
-	ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-	while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF))
-		;
-	ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1);
-
-	ROM_SysTickPeriodSet(HZ/PERIOD-1);
-	sys_ticks = 0;
-	NVIC_ST_CURRENT_R = 0;
-	ROM_IntMasterEnable();
-	ROM_SysTickIntEnable();
-	ROM_SysTickEnable();
-}
-
+void tm4c_setup(void);
 void tm4c_ledlit(enum led_type led, int ticks);
 static inline void tm4c_delay(int ticks)
 {

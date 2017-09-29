@@ -105,6 +105,7 @@ CFLAGS=-mthumb             \
        -std=c99            \
        -Wall               \
        -pedantic           \
+	-fno-zero-initialized-in-bss \
        -c
 
 #
@@ -147,9 +148,9 @@ OBJCOPY=${PREFIX}-objcopy
 # variable is set.
 #
 ifdef DEBUG
-CFLAGS+=-g -D DEBUG -O0
+CFLAGS+=-g -DDEBUG -O0
 else
-CFLAGS+=-O2 -D NDEBUG
+CFLAGS+=-O2 -DNDEBUG
 endif
 
 
