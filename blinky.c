@@ -71,8 +71,7 @@ int main(void)
 	uart_write(&uart0, hello, strlen(hello));
 	while(1)
 	{
-		tm4c_ledblink(RED, 5, 5);
-		count = uart_read(&uart0, buf, len);
+		count = uart_read(&uart0, buf, len, 1);
 		if (count && *(buf+count-1) == 0x0d) {
 			*(buf+count) = 0;
 			uart_write(&uart0, mesg, strlen(mesg));
@@ -82,7 +81,6 @@ int main(void)
 		}
 		buf += count;
 		len -= count;
-		tm4c_ledblink(BLUE, 5, 5);
 	}
 	uart_close(&uart0);
 }

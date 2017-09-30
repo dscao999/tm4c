@@ -111,15 +111,16 @@ void uart_write(struct uart_port *uart, const char *str, int len)
 	ROM_uDMAChannelEnable(uart->tx_dmach);
 }
 
-int uart_read(struct uart_port *uart, char *buf, int len)
+int uart_read(struct uart_port *uart, char *buf, int len, int wait)
 {
 	uint8_t *uchar;
-	uint8_t head, tail;
-	int count;
+	int count, tail, head;
+
+	tail = uart->rxtail;
+	while (wait && tail == uart->rxhead)
+		__asm__ __volatile__("wfi");
 
 	head = uart->rxhead;
-	tail = uart->rxtail;
-	
 	count = 0;
 	uchar = (uint8_t *)buf;
 	while (tail != head && count < len) {
@@ -170,10 +171,10 @@ static void uart_isr(struct uart_port *uart)
 		HWREG(uart->base+UART_O_ICR) = icr|mis;
 	}
 	udma_int = HWREG(UDMA_CHIS);
-	if (udma_int & (1 << uart->tx_dmach))
+	if (udma_int & (1 << uart->tx_dmach)) {
 		uart->tx_dma++;
-	if (udma_int)
 		HWREG(UDMA_CHIS) = udma_int;
+	}
 }
 
 void uart0_isr(void)

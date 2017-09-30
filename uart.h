@@ -15,7 +15,8 @@ struct uart_port {
 	uint32_t ferr;
 	uint32_t tx_dma;
 	uint8_t tx_dmach;
-	uint8_t rxhead, rxtail;
+	volatile uint8_t rxhead;
+	uint8_t rxtail;
 	uint8_t rxbuf[128];
 };
 
@@ -29,7 +30,7 @@ static inline void uart_close(struct uart_port *uart)
 }
 
 void uart_write(struct uart_port *uart, const char *str, int len);
-int uart_read(struct uart_port *uart, char *buf, int len);
+int uart_read(struct uart_port *uart, char *buf, int len, int wait);
 
 void uart0_isr(void);
 
