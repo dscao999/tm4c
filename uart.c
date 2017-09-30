@@ -5,6 +5,7 @@
 #include "inc/hw_types.h"
 #include "inc/tm4c123gh6pm.h"
 #include "driverlib/gpio.h"
+#include "driverlib/udma.h"
 #include "tm4c_miscs.h"
 #include "tm4c_dma.h"
 #include "uart.h"
@@ -14,8 +15,6 @@ static volatile uint32_t uisr = 0;
 struct uart_port uart0 = {
 	.rxhead = 0,
 	.rxtail = 0,
-	.txhead = 0,
-	.txtail = 0,
 };
 
 int uart_open(struct uart_port *uart, int port)
@@ -34,9 +33,8 @@ int uart_open(struct uart_port *uart, int port)
 		ROM_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0|GPIO_PIN_1);
 		ROM_GPIOPinConfigure(GPIO_PA0_U0RX);
 		ROM_GPIOPinConfigure(GPIO_PA1_U0TX);
-		uart->rxdma = 8;
-		uart->txdma = 9;
-		uart->dma_func = 0;
+		uart->tx_dmach = UDMA_CHANNEL_UART0TX;
+		ROM_uDMAChannelAssign(UDMA_CH9_UART0TX);
 		break;
 	case 1:
 		uart->sysctl = SYSCTL_PERIPH_UART1;
@@ -75,41 +73,42 @@ int uart_open(struct uart_port *uart, int port)
 		UART_CONFIG_WLEN_8|UART_CONFIG_STOP_ONE|UART_CONFIG_PAR_NONE);
 	ROM_UARTFIFOLevelSet(uart->base, UART_FIFO_TX2_8, UART_FIFO_RX6_8);
 	ROM_UARTFIFOEnable(uart->base);
-	uart->dma_burst = 12;
 	imask = UART_INT_OE|UART_INT_FE|UART_INT_TX|UART_INT_RX|UART_INT_RT;
 	ROM_UARTIntEnable(uart->base, imask);
 	ROM_IntPrioritySet(INT_UART0, 0xe0);
+
+	ROM_uDMAChannelAttributeDisable(uart->tx_dmach, UDMA_ATTR_ALL);
+	ROM_uDMAChannelControlSet(uart->tx_dmach|UDMA_PRI_SELECT,
+		UDMA_SIZE_8|UDMA_SRC_INC_8|UDMA_DST_INC_NONE|UDMA_ARB_4);
+	ROM_uDMAChannelDisable(uart->tx_dmach);
+
 	ROM_UARTEnable(uart->base);
 	ROM_IntEnable(INT_UART0);
 	return port;
 }
 
-void uart_write_sync(struct uart_port *uart, const char *str)
+static void uart_write_sync(struct uart_port *uart, const char *str, int len)
 {
 	const unsigned char *ustr;
+	int i;
 
-	for (ustr = (const unsigned char *)str; *ustr != 0; ustr++) {
-/*		if (HWREG(uart->base+UART_O_FR) & UART_FR_TXFF) {
-			while((HWREG(uart->base+UART_O_FR) & UART_FR_TXFE) == 0)
-				;
-		}
-		HWREGB(uart->base+UART_O_DR) = *ustr; */
+	for (i = 0, ustr = (const unsigned char *)str; i < len; ustr++, i++)
 		ROM_UARTCharPut(uart->base, *ustr);
-	}
 }
 
-void uart_write(struct uart_port *uart, const char *str)
+void uart_write(struct uart_port *uart, const char *str, int len)
 {
-	const unsigned char *ustr;
+	int dmalen;
 
-	for (ustr = (const unsigned char *)str; *ustr != 0; ustr++) {
-		if(uart->tx) {
-			while((HWREG(uart->base+UART_O_FR) & UART_FR_TXFE) == 0)
-				;
-			uart->tx = 0;
-		}
-		HWREGB(uart->base+UART_O_DR) = *ustr;
+	if (str < (char *)MEMADDR) {
+		uart_write_sync(uart, str, len);
+		return;
 	}
+	dmalen = len > 1024? 1024 : len;
+	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
+		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
+	ROM_UARTDMAEnable(uart->base, UART_DMA_TX);
+	ROM_uDMAChannelEnable(uart->tx_dmach);
 }
 
 int uart_read(struct uart_port *uart, char *buf, int len)
@@ -148,7 +147,7 @@ static void uart_recv(struct uart_port *uart)
 
 static void uart_isr(struct uart_port *uart)
 {
-	uint32_t icr, mis, err, imask;
+	uint32_t icr, mis, err, udma_int;
 
 	err = 0;
 	mis = HWREG(uart->base+UART_O_MIS);
@@ -166,10 +165,15 @@ static void uart_isr(struct uart_port *uart)
 	}
 	if (err)
 		HWREG(uart->base+UART_O_ECR) = 0x0ff;
-	imask = HWREG(uart->base+UART_O_IM);
-	icr = HWREG(uart->base+UART_O_ICR);
-	icr |= (mis & imask);
-	HWREG(uart->base+UART_O_ICR) = icr;
+	if (mis) {
+		icr = HWREG(uart->base+UART_O_ICR);
+		HWREG(uart->base+UART_O_ICR) = icr|mis;
+	}
+	udma_int = HWREG(UDMA_CHIS);
+	if (udma_int & (1 << uart->tx_dmach))
+		uart->tx_dma++;
+	if (udma_int)
+		HWREG(UDMA_CHIS) = udma_int;
 }
 
 void uart0_isr(void)

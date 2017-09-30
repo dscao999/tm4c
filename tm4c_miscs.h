@@ -15,6 +15,7 @@ enum led_type {RED, BLUE, GREEN};
 extern volatile uint32_t sys_ticks;
 extern const uint32_t HZ;
 extern const uint32_t PERIOD;
+extern const uint32_t MEMADDR;
 
 #define time_before(cur, tmark) \
 	((int32_t)cur - (int32_t)tmark < 0)

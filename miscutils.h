@@ -10,6 +10,16 @@ static inline uint8_t hex2char(uint8_t v)
 		return '0' + v;
 }
 
+static inline int strlen(const char *str)
+{
+	const char *cstr;
+	int i;
+
+	for (i = 0, cstr = str; *cstr != 0; cstr++, i++)
+		;
+	return i;
+}
+
 static inline void hex2ascii(uint32_t v, char *buf)
 {
 	*(buf+7) = hex2char(v & 0x0f);

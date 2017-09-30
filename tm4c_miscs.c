@@ -2,6 +2,7 @@
 
 const uint32_t HZ = 80000000;
 const uint32_t PERIOD = 10;
+const uint32_t MEMADDR = 0x20000000;
 volatile uint32_t sys_ticks;
 
 void tm4c_setup(void)

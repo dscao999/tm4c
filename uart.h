@@ -11,13 +11,12 @@ struct uart_port {
 	uint32_t base;
 	uint32_t tx;
 	uint32_t rx;
-	uint8_t rxhead, rxtail;
-	uint8_t txhead, txtail;
 	uint32_t oerr;
 	uint32_t ferr;
-	uint8_t txdma, rxdma, dma_func, dma_burst;
+	uint32_t tx_dma;
+	uint8_t tx_dmach;
+	uint8_t rxhead, rxtail;
 	uint8_t rxbuf[128];
-	uint8_t txbuf[128];
 };
 
 extern struct uart_port uart0;
@@ -29,8 +28,7 @@ static inline void uart_close(struct uart_port *uart)
 	ROM_SysCtlPeripheralDisable(uart->sysctl);
 }
 
-void uart_write(struct uart_port *uart, const char *str);
-void uart_write_sync(struct uart_port *uart, const char *str);
+void uart_write(struct uart_port *uart, const char *str, int len);
 int uart_read(struct uart_port *uart, char *buf, int len);
 
 void uart0_isr(void);

@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include "inc/hw_nvic.h"
 #include "inc/hw_types.h"
+#include "inc/hw_udma.h"
 #include "tm4c_miscs.h"
 #include "uart.h"
 
@@ -38,6 +39,7 @@ static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
 static void SysTickISR(void);
+static void udma_error(void);
 
 //*****************************************************************************
 //
@@ -52,6 +54,7 @@ extern int main(void);
 //
 //*****************************************************************************
 static uint32_t pui32Stack[256];
+extern uint32_t udmaerr;
 
 //*****************************************************************************
 //
@@ -126,7 +129,7 @@ void (* const g_pfnVectors[])(void) =
 	IntDefaultHandler,			// USB0
 	IntDefaultHandler,			// PWM Generator 3
 	IntDefaultHandler,			// uDMA Software Transfer
-	IntDefaultHandler,			// uDMA Error
+	udma_error,			// uDMA Error
 	IntDefaultHandler,			// ADC1 Sequence 0
 	IntDefaultHandler,			// ADC1 Sequence 1
 	IntDefaultHandler,			// ADC1 Sequence 2
@@ -336,4 +339,15 @@ IntDefaultHandler(void)
 static void SysTickISR(void)
 {
 	sys_ticks++;
+}
+
+static void udma_error(void)
+{
+	uint32_t err;
+
+	err = HWREG(UDMA_ERRCLR);
+	if (err & 1) {
+		udmaerr++;
+		HWREG(UDMA_ERRCLR) = 1;
+	}
 }
