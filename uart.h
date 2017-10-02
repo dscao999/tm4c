@@ -13,8 +13,8 @@ struct uart_port {
 	uint32_t rx;
 	uint32_t oerr;
 	uint32_t ferr;
-	uint32_t tx_dma;
 	uint8_t tx_dmach;
+	volatile uint8_t txdma;
 	volatile uint8_t rxhead;
 	uint8_t rxtail;
 	uint8_t rxbuf[128];

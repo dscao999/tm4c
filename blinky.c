@@ -67,7 +67,7 @@ int main(void)
 	count = 0;
 	len = 79;
 	buf = mesg;
-	tm4c_ledblink(GREEN, 80, 10);
+	tm4c_ledblink(GREEN, 50, 20);
 	uart_write(&uart0, hello, strlen(hello));
 	while(1)
 	{

@@ -14,7 +14,7 @@
 enum led_type {RED, BLUE, GREEN};
 extern volatile uint32_t sys_ticks;
 extern const uint32_t HZ;
-extern const uint32_t PERIOD;
+extern const uint32_t CYCLES;
 extern const uint32_t MEMADDR;
 
 #define time_before(cur, tmark) \
@@ -23,13 +23,18 @@ extern const uint32_t MEMADDR;
 #define time_after(cur, tmark) \
 	((int32_t)cur - (int32_t)tmark > 0)
 
+static inline int csec2tick(int csecs)
+{
+	return (CYCLES/10)*csecs;
+}
+
 void tm4c_setup(void);
-void tm4c_ledlit(enum led_type led, int ticks);
-static inline void tm4c_delay(int ticks)
+void tm4c_ledlit(enum led_type led, int csecs);
+static inline void tm4c_delay(int csecs)
 {
 	uint32_t mark;
 
-	mark = sys_ticks + ticks;
+	mark = sys_ticks + csec2tick(csecs);
 	while (time_before(sys_ticks, mark))
 		__asm__ __volatile__("wfi");
 }

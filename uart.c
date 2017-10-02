@@ -105,10 +105,13 @@ void uart_write(struct uart_port *uart, const char *str, int len)
 		return;
 	}
 	dmalen = len > 1024? 1024 : len;
+	while (uart->txdma)
+		__asm__ __volatile__("wfi");
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
 	ROM_UARTDMAEnable(uart->base, UART_DMA_TX);
 	ROM_uDMAChannelEnable(uart->tx_dmach);
+	uart->txdma = 1;
 }
 
 int uart_read(struct uart_port *uart, char *buf, int len, int wait)
@@ -172,8 +175,8 @@ static void uart_isr(struct uart_port *uart)
 	}
 	udma_int = HWREG(UDMA_CHIS);
 	if (udma_int & (1 << uart->tx_dmach)) {
-		uart->tx_dma++;
 		HWREG(UDMA_CHIS) = udma_int;
+		uart->txdma = 0;
 	}
 }
 
