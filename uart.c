@@ -106,7 +106,7 @@ void uart_write(struct uart_port *uart, const char *str, int len)
 	}
 	dmalen = len > 1024? 1024 : len;
 	while (uart->txdma)
-		__asm__ __volatile__("wfi");
+		tm4c_waitint();
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
 	ROM_UARTDMAEnable(uart->base, UART_DMA_TX);

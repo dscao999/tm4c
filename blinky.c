@@ -55,7 +55,8 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //
 //*****************************************************************************
 
-static char hello[] = "Hello, World! I'm coming soon.\n";
+static char hello[] = "Hello, World! I'm coming soon. This is really wonderful!\n";
+static char yell[] = "Hello, World! I'm coming soon. Everything is excellent!\n";
 int main(void)
 {
 	char mesg[80], *buf;
@@ -69,6 +70,9 @@ int main(void)
 	buf = mesg;
 	tm4c_ledblink(GREEN, 50, 20);
 	uart_write(&uart0, hello, strlen(hello));
+	uart_write(&uart0, yell, strlen(yell));
+	uart_write(&uart0, hello, strlen(hello));
+	uart_write(&uart0, yell, strlen(yell));
 	while(1)
 	{
 		count = uart_read(&uart0, buf, len, 1);
