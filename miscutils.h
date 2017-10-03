@@ -2,6 +2,26 @@
 #define MISCUTILS_DSCAO__
 #include <stdint.h>
 
+static inline int memcmp(const void *a, const void *b, int len)
+{
+	int i, retv;
+	const uint8_t *aa, *bb;
+
+	retv = 0;
+	aa = a;
+	bb = b;
+	for (i = 0; i < len; i++, aa++, bb++) {
+		if (*aa > *bb) {
+			retv = 1;
+			break;
+		} else if (*aa < *bb) {
+			retv = -1;
+			break;
+		}
+	}
+	return retv;
+}
+
 static inline uint8_t hex2char(uint8_t v)
 {
 	if (v > 9)

@@ -104,7 +104,7 @@ void uart_write(struct uart_port *uart, const char *str, int len)
 		uart_write_sync(uart, str, len);
 		return;
 	}
-	dmalen = len > 1024? 1024 : len;
+	dmalen = len > 512? 512 : len;
 	while (uart->txdma)
 		tm4c_waitint();
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
@@ -116,20 +116,23 @@ void uart_write(struct uart_port *uart, const char *str, int len)
 
 int uart_read(struct uart_port *uart, char *buf, int len, int wait)
 {
-	uint8_t *uchar;
+	uint8_t *uchar, cret;
 	int count, tail, head;
 
 	tail = uart->rxtail;
 	while (wait && tail == uart->rxhead)
-		__asm__ __volatile__("wfi");
+		tm4c_waitint();
 
 	head = uart->rxhead;
 	count = 0;
 	uchar = (uint8_t *)buf;
-	while (tail != head && count < len) {
-		*uchar++ = uart->rxbuf[tail];
+	cret = 0;
+	while (tail != head && count < len && cret != 0x0d && cret != 0x0a) {
+		cret = uart->rxbuf[tail];
+		*uchar++ = cret;
 		tail = (tail + 1) & 0x7f;
 		count++;
+	
 	}
 	uart->rxtail = tail;
 	return count;
@@ -137,16 +140,15 @@ int uart_read(struct uart_port *uart, char *buf, int len, int wait)
 
 static void uart_recv(struct uart_port *uart)
 {
-	int32_t oh, hd;
+	int32_t oh, nd;
 
-	uart->rx++;
 	oh = uart->rxhead;
-	hd = oh;
+	nd = oh;
 	while ((HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0) {
-		uart->rxbuf[hd] = HWREG(uart->base+UART_O_DR);
-		hd = (hd + 1) & 0x7f;
+		uart->rxbuf[nd] = HWREGB(uart->base+UART_O_DR);
+		nd = (nd + 1) & 0x7f;
 	}
-	uart->rxhead = hd;
+	uart->rxhead = nd;
 }
 
 static void uart_isr(struct uart_port *uart)
@@ -155,10 +157,6 @@ static void uart_isr(struct uart_port *uart)
 
 	err = 0;
 	mis = HWREG(uart->base+UART_O_MIS);
-	if (mis & UART_INT_TX)
-		uart->tx++;
-	if ((mis & UART_INT_RX) || (mis & UART_INT_RT))
-		uart_recv(uart);
 	if (mis & UART_INT_OE) {
 		uart->oerr++;
 		err = 1;
@@ -168,14 +166,17 @@ static void uart_isr(struct uart_port *uart)
 		err = 1;
 	}
 	if (err)
-		HWREG(uart->base+UART_O_ECR) = 0x0ff;
+		HWREG(uart->base+UART_O_ECR) |= 0x0ff;
+
+	if ((mis & UART_INT_RX) || (mis & UART_INT_RT))
+		uart_recv(uart);
 	if (mis) {
 		icr = HWREG(uart->base+UART_O_ICR);
 		HWREG(uart->base+UART_O_ICR) = icr|mis;
 	}
 	udma_int = HWREG(UDMA_CHIS);
 	if (udma_int & (1 << uart->tx_dmach)) {
-		HWREG(UDMA_CHIS) = udma_int;
+		HWREG(UDMA_CHIS) = (1 << uart->tx_dmach);
 		uart->txdma = 0;
 	}
 }

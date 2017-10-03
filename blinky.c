@@ -55,36 +55,45 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //
 //*****************************************************************************
 
+static const char *RESET = "ReseT";
 static char hello[] = "Hello, World! I'm coming soon. This is really wonderful!\n";
 static char yell[] = "Hello, World! I'm coming soon. Everything is excellent!\n";
 int main(void)
 {
-	char mesg[80], *buf;
-	int count, len;
+	char mesg[128], *buf;
+	int count, len, rlen;
 
 	tm4c_setup();
 	tm4c_dma_enable();
 	uart_open(&uart0, 0);
-	count = 0;
-	len = 79;
-	buf = mesg;
 	tm4c_ledblink(GREEN, 50, 20);
 	uart_write(&uart0, hello, strlen(hello));
 	uart_write(&uart0, yell, strlen(yell));
 	uart_write(&uart0, hello, strlen(hello));
 	uart_write(&uart0, yell, strlen(yell));
-	while(1)
+	buf = mesg;
+	len = sizeof(mesg)-1;
+	count = 0;
+	while(len > 0)
 	{
 		count = uart_read(&uart0, buf, len, 1);
-		if (count && *(buf+count-1) == 0x0d) {
+		for (rlen = 0; rlen < count; rlen++)
+			if (*(buf+rlen) == 0)
+				*(buf+rlen) = '\\';
+		if (count && (*(buf+count-1) == 0x0d || *(buf+count-1) == 0x0a)) {
 			*(buf+count) = 0;
-			uart_write(&uart0, mesg, strlen(mesg));
+			rlen = strlen(mesg);
+			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
+				tm4c_reset();
+			uart_write(&uart0, mesg, rlen);
 			buf = mesg;
-			len = 79;
+			len = sizeof(mesg)-1;
 			count = 0;
 		}
 		buf += count;
 		len -= count;
 	}
+
 	uart_close(&uart0);
+	tm4c_reset();
 }
