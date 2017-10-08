@@ -65,18 +65,18 @@ int main(void)
 
 	tm4c_setup();
 	tm4c_dma_enable();
-	uart_open(&uart0, 0);
+	uart_open(0);
 	tm4c_ledblink(GREEN, 50, 20);
-	uart_write(&uart0, hello, strlen(hello));
-	uart_write(&uart0, yell, strlen(yell));
-	uart_write(&uart0, hello, strlen(hello));
-	uart_write(&uart0, yell, strlen(yell));
+	uart_write(0, hello, strlen(hello));
+	uart_write(0, yell, strlen(yell));
+	uart_write(0, hello, strlen(hello));
+	uart_write(0, yell, strlen(yell));
 	buf = mesg;
 	len = sizeof(mesg)-1;
 	count = 0;
 	while(len > 0)
 	{
-		count = uart_read(&uart0, buf, len, 1);
+		count = uart_read(0, buf, len, 1);
 		for (rlen = 0; rlen < count; rlen++)
 			if (*(buf+rlen) == 0)
 				*(buf+rlen) = '\\';
@@ -85,7 +85,7 @@ int main(void)
 			rlen = strlen(mesg);
 			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
 				tm4c_reset();
-			uart_write(&uart0, mesg, rlen);
+			uart_write(0, mesg, rlen);
 			buf = mesg;
 			len = sizeof(mesg)-1;
 			count = 0;
@@ -94,6 +94,6 @@ int main(void)
 		len -= count;
 	}
 
-	uart_close(&uart0);
+	uart_close(0);
 	tm4c_reset();
 }

@@ -5,7 +5,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_nvic.h"
-#include "inc/tm4c123gh6pm.h"
+#include "inc/hw_ints.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/systick.h"

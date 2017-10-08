@@ -28,6 +28,7 @@
 #include "inc/hw_udma.h"
 #include "tm4c_miscs.h"
 #include "uart.h"
+#include "tm4c_qei.h"
 
 //*****************************************************************************
 //
@@ -120,7 +121,7 @@ void (* const g_pfnVectors[])(void) =
 	IntDefaultHandler,			// Timer 3 subtimer A
 	IntDefaultHandler,			// Timer 3 subtimer B
 	IntDefaultHandler,			// I2C1 Master and Slave
-	IntDefaultHandler,			// Quadrature Encoder 1
+	qei0_isr,				// Quadrature Encoder 1
 	IntDefaultHandler,			// CAN0
 	IntDefaultHandler,			// CAN1
 	0,					// Reserved
@@ -129,7 +130,7 @@ void (* const g_pfnVectors[])(void) =
 	IntDefaultHandler,			// USB0
 	IntDefaultHandler,			// PWM Generator 3
 	IntDefaultHandler,			// uDMA Software Transfer
-	udma_error,			// uDMA Error
+	udma_error,				// uDMA Error
 	IntDefaultHandler,			// ADC1 Sequence 0
 	IntDefaultHandler,			// ADC1 Sequence 1
 	IntDefaultHandler,			// ADC1 Sequence 2

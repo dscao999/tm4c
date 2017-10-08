@@ -16,7 +16,7 @@ void tm4c_setup(void)
 
 	ROM_SysTickPeriodSet(HZ/CYCLES-1);
 	sys_ticks = 0;
-	NVIC_ST_CURRENT_R = 0;
+	HWREG(NVIC_ST_CURRENT) = 0;
 	ROM_IntMasterEnable();
 	ROM_SysTickIntEnable();
 	ROM_SysTickEnable();

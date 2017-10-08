@@ -7,10 +7,9 @@
 #include "driverlib/rom.h"
 
 struct uart_port {
-	uint32_t sysctl;
 	uint32_t base;
-	uint32_t oerr;
-	uint32_t ferr;
+	uint16_t oerr;
+	uint16_t ferr;
 	uint8_t tx_dmach;
 	volatile uint8_t txdma;
 	volatile uint8_t rxhead;
@@ -18,18 +17,11 @@ struct uart_port {
 	uint8_t rxbuf[128];
 };
 
-extern struct uart_port uart0;
+void uart_open(int port);
+void uart_close(int port);
 
-int uart_open(struct uart_port *uart, int port);
-static inline void uart_close(struct uart_port *uart)
-{
-	while (uart->txdma)
-		;
-	ROM_UARTDisable(uart->base);
-}
-
-void uart_write(struct uart_port *uart, const char *str, int len);
-int uart_read(struct uart_port *uart, char *buf, int len, int wait);
+void uart_write(int port, const char *str, int len);
+int uart_read(int port, char *buf, int len, int wait);
 
 void uart0_isr(void);
 
