@@ -21,9 +21,10 @@ static struct uart_port uartms[] = {
 
 void uart_open(int port)
 {
-	uint32_t imask, periph, intr;
+	uint32_t imask, periph, intr, baud;
 	struct uart_port *uart = uartms + port;
 
+	baud = 115200;
 	switch(port) {
 	case 0:
 		ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
@@ -79,7 +80,7 @@ void uart_open(int port)
 	while (!ROM_SysCtlPeripheralReady(periph))
 			;
 	ROM_UARTClockSourceSet(uart->base, UART_CLOCK_SYSTEM);
-	ROM_UARTConfigSetExpClk(uart->base, HZ, 115200,
+	ROM_UARTConfigSetExpClk(uart->base, HZ, baud,
 		UART_CONFIG_WLEN_8|UART_CONFIG_STOP_ONE|UART_CONFIG_PAR_NONE);
 	ROM_UARTFIFOLevelSet(uart->base, UART_FIFO_TX2_8, UART_FIFO_RX6_8);
 	ROM_UARTFIFOEnable(uart->base);
@@ -87,10 +88,11 @@ void uart_open(int port)
 	ROM_UARTIntEnable(uart->base, imask);
 	ROM_IntPrioritySet(intr, 0xe0);
 
+	ROM_uDMAChannelDisable(uart->tx_dmach);
 	ROM_uDMAChannelAttributeDisable(uart->tx_dmach, UDMA_ATTR_ALL);
 	ROM_uDMAChannelControlSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_SIZE_8|UDMA_SRC_INC_8|UDMA_DST_INC_NONE|UDMA_ARB_4);
-	ROM_uDMAChannelDisable(uart->tx_dmach);
+	ROM_UARTDMAEnable(uart->base, UART_DMA_TX);
 
 	ROM_UARTEnable(uart->base);
 	ROM_IntEnable(intr);
@@ -102,9 +104,9 @@ static void uart_write_sync(struct uart_port *uart, const char *str, int len)
 	int i;
 
 	for (i = 0, ustr = (const unsigned char *)str; i < len; ustr++, i++) {
-		while(HWREG(ui32Base+UART_O_FR) & UART_FR_TXFF)
+		while(HWREG(uart->base+UART_O_FR) & UART_FR_TXFF)
 			;
-		HWREG(ui32Base+UART_O_DR) = *ustr;
+		HWREG(uart->base+UART_O_DR) = *ustr;
 	}
 }
 
@@ -122,9 +124,8 @@ void uart_write(int port, const char *str, int len)
 		tm4c_waitint();
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
-	ROM_UARTDMAEnable(uart->base, UART_DMA_TX);
-	ROM_uDMAChannelEnable(uart->tx_dmach);
 	uart->txdma = 1;
+	ROM_uDMAChannelEnable(uart->tx_dmach);
 }
 
 int uart_read(int port, char *buf, int len, int wait)

@@ -60,7 +60,7 @@ static char hello[] = "Hello, World! I'm coming soon. This is really wonderful!\
 static char yell[] = "Hello, World! I'm coming soon. Everything is excellent!\n";
 int main(void)
 {
-	char mesg[128], *buf;
+	char mesg[96], *buf;
 	int count, len, rlen;
 
 	tm4c_setup();

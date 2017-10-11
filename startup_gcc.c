@@ -54,7 +54,7 @@ extern int main(void);
 // Reserve space for the system stack.
 //
 //*****************************************************************************
-static uint32_t pui32Stack[256];
+static uint32_t pui32Stack[512];
 extern uint32_t udmaerr;
 
 //*****************************************************************************
