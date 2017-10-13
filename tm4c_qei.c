@@ -13,9 +13,13 @@ static uint32_t qei0_isr_nums = 0;
 struct qei_port qeims[] = {
 	{
 		.base = QEI0_BASE,
+		.sysperip = SYSCTL_PERIPH_QEI0,
+		.intr = INT_QEI0
 	},
 	{
 		.base = QEI1_BASE,
+		.sysperip = SYSCTL_PERIPH_QEI1,
+		.intr = INT_QEI1
 	}
 };
 
@@ -27,10 +31,23 @@ static inline void tm4c_qei_filter(struct qei_port *qei, uint32_t filt)
 	HWREG(qei->base+QEI_O_CTL) = qeictl|filt|QEI_CTL_FILTEN;
 }
 
-void qei_setup(int port)
+void tm4c_qei_config(struct qei_port *qei, uint32_t pos)
+{
+	uint32_t qeimode;
+
+	qeimode = QEI_CONFIG_CAPTURE_A|QEI_CONFIG_NO_RESET|QEI_CONFIG_QUADRATURE;
+	ROM_QEIConfigure(qei->base, qeimode, 0xffffffffu);
+	tm4c_qei_filter(qei, QEI_FILTCNT_12);
+	ROM_QEIIntEnable(qei->base, QEI_INTERROR|QEI_INTDIR);
+	ROM_IntPrioritySet(qei->intr, 0xa0);
+	HWREG(qei->base+QEI_O_POS) = pos;
+	ROM_QEIEnable(qei->base);
+	ROM_IntEnable(qei->intr);
+}
+
+void qei_setup(int port, uint32_t pos)
 {
 	struct qei_port *qei;
-	uint32_t perip, intr, qeimode;
 
 	qei = qeims+port;
 	switch (port) {
@@ -42,8 +59,6 @@ void qei_setup(int port)
 		ROM_GPIOPinConfigure(GPIO_PD3_IDX0);
 		ROM_GPIOPinConfigure(GPIO_PD6_PHA0);
 		ROM_GPIOPinConfigure(GPIO_PD7_PHB0);
-		perip = SYSCTL_PERIPH_QEI0;
-		intr = INT_QEI0;
 		break;
 	case 1:
 		ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
@@ -53,24 +68,16 @@ void qei_setup(int port)
 		ROM_GPIOPinConfigure(GPIO_PC4_IDX1);
 		ROM_GPIOPinConfigure(GPIO_PC5_PHA1);
 		ROM_GPIOPinConfigure(GPIO_PC6_PHB1);
-		perip = SYSCTL_PERIPH_QEI1;
-		intr = INT_QEI1;
 		break;
 	default:
 		while(1)
 			;
 	}
 
-	ROM_SysCtlPeripheralEnable(perip);
-	while(!ROM_SysCtlPeripheralReady(perip))
+	ROM_SysCtlPeripheralEnable(qei->sysperip);
+	while(!ROM_SysCtlPeripheralReady(qei->sysperip))
 			;
-	qeimode = QEI_CONFIG_CAPTURE_A|QEI_CONFIG_NO_RESET|QEI_CONFIG_CLOCK_DIR;
-	ROM_QEIConfigure(qei->base, qeimode, 0xffffffffu);
-	tm4c_qei_filter(qei, QEI_FILTCNT_12);
-	ROM_QEIIntEnable(qei->base, QEI_INTERROR|QEI_INTDIR);
-	ROM_IntPrioritySet(intr, 0xa0);
-	ROM_QEIEnable(qei->base);
-	ROM_IntEnable(intr);
+	tm4c_qei_config(qei, pos);
 }
 
 static void qei_isr(struct qei_port *qei)

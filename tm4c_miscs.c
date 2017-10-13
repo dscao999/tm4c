@@ -27,7 +27,6 @@ void tm4c_ledlit(enum led_type led, int ticks)
 	uint32_t ledpin;
 	int intensity;
 
-	ledpin = GPIO_PIN_1;
 	intensity = 10;
 	switch(led) {
 	case RED:
@@ -41,8 +40,8 @@ void tm4c_ledlit(enum led_type led, int ticks)
 		ledpin = GPIO_PIN_3;
 		break;
 	default:
-		while(1)
-			;
+		ledpin = GPIO_PIN_1;
+		break;
 	}
 
 	ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, intensity);

@@ -65,8 +65,8 @@ int main(void)
 
 	tm4c_setup();
 	tm4c_dma_enable();
-	uart_open(0);
 	tm4c_ledblink(GREEN, 50, 20);
+	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 	uart_write(0, yell, strlen(yell));
 	uart_write(0, hello, strlen(hello));
