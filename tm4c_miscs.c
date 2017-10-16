@@ -4,6 +4,7 @@ const uint32_t HZ = 80000000;
 const uint32_t CYCLES = 10;
 const uint32_t MEMADDR = 0x20000000;
 volatile uint32_t sys_ticks;
+uint32_t cycles;
 
 void tm4c_setup(void)
 {
@@ -16,6 +17,7 @@ void tm4c_setup(void)
 
 	ROM_SysTickPeriodSet(HZ/CYCLES-1);
 	sys_ticks = 0;
+	cycles = CYCLES/10;
 	HWREG(NVIC_ST_CURRENT) = 0;
 	ROM_IntMasterEnable();
 	ROM_SysTickIntEnable();

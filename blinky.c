@@ -56,8 +56,7 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //*****************************************************************************
 
 static const char *RESET = "ReseT";
-static char hello[] = "Hello, World! I'm coming soon. This is really wonderful!\n";
-static char yell[] = "Hello, World! I'm coming soon. Everything is excellent!\n";
+static const char hello[] = "Initialization Completed!\n";
 int main(void)
 {
 	char mesg[96], *buf;
@@ -65,12 +64,9 @@ int main(void)
 
 	tm4c_setup();
 	tm4c_dma_enable();
-	tm4c_ledblink(GREEN, 50, 20);
+	tm4c_ledblink(GREEN, 10, 5);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
-	uart_write(0, yell, strlen(yell));
-	uart_write(0, hello, strlen(hello));
-	uart_write(0, yell, strlen(yell));
 	buf = mesg;
 	len = sizeof(mesg)-1;
 	count = 0;

@@ -17,6 +17,7 @@ extern volatile uint32_t sys_ticks;
 extern const uint32_t HZ;
 extern const uint32_t CYCLES;
 extern const uint32_t MEMADDR;
+extern uint32_t cycles;
 
 #define time_before(cur, tmark) \
 	((int32_t)cur - (int32_t)tmark < 0)
@@ -26,7 +27,7 @@ extern const uint32_t MEMADDR;
 
 static inline int csec2tick(int csecs)
 {
-	return (CYCLES/10)*csecs;
+	return cycles*csecs;
 }
 
 void tm4c_setup(void);

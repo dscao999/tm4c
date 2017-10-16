@@ -13,6 +13,7 @@ struct qei_port {
 	uint16_t intr;
 	uint16_t err;
 	uint16_t dir;
+	uint16_t index;
 };
 
 void tm4c_qei_config(struct qei_port *qei, uint32_t pos);

@@ -348,7 +348,8 @@ static void udma_error(void)
 
 	err = HWREG(UDMA_ERRCLR);
 	if (err & 1) {
-		udmaerr++;
 		HWREG(UDMA_ERRCLR) = 1;
+		udmaerr++;
+		err = HWREG(UDMA_ERRCLR);
 	}
 }

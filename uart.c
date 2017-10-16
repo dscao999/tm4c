@@ -115,13 +115,13 @@ void uart_write(int port, const char *str, int len)
 	int dmalen;
 	struct uart_port *uart = uartms + port;
 
+	while (uart->txdma)
+		tm4c_waitint();
 	if (str < (char *)MEMADDR) {
 		uart_write_sync(uart, str, len);
 		return;
 	}
 	dmalen = len > 512? 512 : len;
-	while (uart->txdma)
-		tm4c_waitint();
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
 	uart->txdma = 1;
@@ -221,6 +221,16 @@ static void uart_isr(struct uart_port *uart)
 
 	err = 0;
 	mis = HWREG(uart->base+UART_O_MIS);
+	if (mis) {
+		icr = HWREG(uart->base+UART_O_ICR);
+		HWREG(uart->base+UART_O_ICR) = icr|mis;
+	}
+	udma_int = HWREG(UDMA_CHIS);
+	if (udma_int & (1 << uart->tx_dmach)) {
+		HWREG(UDMA_CHIS) = (1 << uart->tx_dmach);
+		uart->txdma = 0;
+	}
+
 	if (mis & UART_INT_OE) {
 		uart->oerr++;
 		err = 1;
@@ -231,22 +241,12 @@ static void uart_isr(struct uart_port *uart)
 	}
 	if (err)
 		HWREG(uart->base+UART_O_ECR) |= 0x0ff;
-
 	if ((mis & UART_INT_RX) || (mis & UART_INT_RT))
 		uart_recv(uart);
-	if (mis) {
-		icr = HWREG(uart->base+UART_O_ICR);
-		HWREG(uart->base+UART_O_ICR) = icr|mis;
-	}
-	udma_int = HWREG(UDMA_CHIS);
-	if (udma_int & (1 << uart->tx_dmach)) {
-		HWREG(UDMA_CHIS) = (1 << uart->tx_dmach);
-		uart->txdma = 0;
-	}
 }
 
 void uart0_isr(void)
 {
-	uart0_isr_nums++;
 	uart_isr(uartms);
+	uart0_isr_nums++;
 }
