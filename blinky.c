@@ -26,6 +26,7 @@
 #include "tm4c_miscs.h"
 #include "tm4c_dma.h"
 #include "uart.h"
+#include "tm4c_qei.h"
 
 //*****************************************************************************
 //
@@ -60,11 +61,13 @@ static const char hello[] = "Initialization Completed!\n";
 int main(void)
 {
 	char mesg[96], *buf;
-	int count, len, rlen;
+	int count, len, rlen, qport;
 
+	qport = 0;
 	tm4c_setup();
 	tm4c_dma_enable();
-	tm4c_ledblink(GREEN, 10, 5);
+	tm4c_ledblink(GREEN, 20, 5);
+	tm4c_qei_setup(qport, qport+10);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 	buf = mesg;
@@ -85,6 +88,11 @@ int main(void)
 			buf = mesg;
 			len = sizeof(mesg)-1;
 			count = 0;
+			if (memcmp(mesg, "PoS", 3) == 0) {
+				hex2ascii(tm4c_qei_getpos(qport), mesg);
+				mesg[8] = '\n';
+				uart_write(0, mesg, 9);
+			}
 		}
 		buf += count;
 		len -= count;

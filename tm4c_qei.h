@@ -10,32 +10,22 @@
 struct qei_port {
 	uint32_t base;
 	uint32_t sysperip;
+	uint32_t mis;
+	uint32_t pos;
 	uint16_t intr;
 	uint16_t err;
 	uint16_t dir;
 	uint16_t index;
 };
 
-void tm4c_qei_config(struct qei_port *qei, uint32_t pos);
-void qei_setup(int port, uint32_t pos);
+void tm4c_qei_config(int port, uint32_t pos);
+void tm4c_qei_setup(int port, uint32_t pos);
 
-static inline void qei_reset(struct qei_port *qei, uint32_t pos)
-{
-	ROM_SysCtlPeripheralReset(qei->sysperip);
-	while(!ROM_SysCtlPeripheralReady(qei->sysperip))
-		;
-	tm4c_qei_config(qei, pos);
-}
+void tm4c_qei_reset(int port, uint32_t pos);
 
 void qei0_isr(void);
+void qei1_isr(void);
 
-static inline int32_t qei_getpos(struct qei_port *qei)
-{
-	return HWREG(qei->base+QEI_O_POS);
-}
-static inline void qei_setpos(struct qei_port *qei, uint32_t pos)
-{
-	HWREG(qei->base+QEI_O_POS) = pos;
-}
+uint32_t tm4c_qei_getpos(int port);
 
 #endif /* TM4C_QEI_DSCAO__ */
