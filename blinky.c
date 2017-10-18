@@ -61,12 +61,13 @@ static const char hello[] = "Initialization Completed!\n";
 int main(void)
 {
 	char mesg[96], *buf;
-	int count, len, rlen;
+	int count, len, rlen, qport;
 
+	qport = 1;
 	tm4c_setup();
 	tm4c_dma_enable();
 	tm4c_ledblink(GREEN, 20, 5);
-	tm4c_qei_setup(0, 0);
+	tm4c_qei_setup(qport, 11+qport);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 
@@ -85,7 +86,7 @@ int main(void)
 			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
 				tm4c_reset();
 			if (memcmp(mesg, "PoS", 3) == 0) {
-				hex2ascii(tm4c_qei_getpos(0), mesg);
+				hex2ascii(tm4c_qei_getpos(qport), mesg);
 				mesg[8] = '\n';
 				uart_write(0, mesg, 9);
 			} else
