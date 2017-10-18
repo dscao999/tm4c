@@ -29,6 +29,7 @@
 #include "tm4c_miscs.h"
 #include "uart.h"
 #include "tm4c_qei.h"
+#include "tm4c_gpio.h"
 
 //*****************************************************************************
 //
@@ -85,8 +86,8 @@ void (* const g_pfnVectors[])(void) =
 	SysTickISR,				// The SysTick handler
 	IntDefaultHandler,			// GPIO Port A
 	IntDefaultHandler,			// GPIO Port B
-	IntDefaultHandler,			// GPIO Port C
-	IntDefaultHandler,			// GPIO Port D
+	gpioc_isr,			// GPIO Port C
+	gpiod_isr,			// GPIO Port D
 	IntDefaultHandler,			// GPIO Port E
 	uart0_isr,				// UART0 Rx and Tx
 	IntDefaultHandler,			// UART1 Rx and Tx

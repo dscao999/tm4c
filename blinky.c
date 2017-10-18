@@ -27,6 +27,7 @@
 #include "tm4c_dma.h"
 #include "uart.h"
 #include "tm4c_qei.h"
+#include "tm4c_gpio.h"
 
 //*****************************************************************************
 //
@@ -61,13 +62,16 @@ static const char hello[] = "Initialization Completed!\n";
 int main(void)
 {
 	char mesg[96], *buf;
-	int count, len, rlen, qport;
+	int count, len, rlen;
 
-	qport = 1;
 	tm4c_setup();
 	tm4c_dma_enable();
-	tm4c_ledblink(GREEN, 20, 5);
-	tm4c_qei_setup(qport, 11+qport);
+	tm4c_gpio_setup(GPIOF);
+	tm4c_ledblink(GREEN, 10, 5);
+	tm4c_gpio_setup(GPIOC);
+	tm4c_gpio_setup(GPIOD);
+	tm4c_qei_setup(0, 1);
+	tm4c_qei_setup(1, 2);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 
@@ -86,9 +90,14 @@ int main(void)
 			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
 				tm4c_reset();
 			if (memcmp(mesg, "PoS", 3) == 0) {
-				hex2ascii(tm4c_qei_getpos(qport), mesg);
+				tm4c_gpio_getconf(GPIOC);
+				tm4c_gpio_getconf(GPIOD);
+				hex2ascii(tm4c_qei_getpos(0), mesg);
 				mesg[8] = '\n';
 				uart_write(0, mesg, 9);
+				hex2ascii(tm4c_qei_getpos(1), mesg+16);
+				mesg[24] = '\n';
+				uart_write(0, mesg+16, 9);
 			} else
 				uart_write(0, mesg, rlen);
 			buf = mesg;

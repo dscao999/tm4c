@@ -9,12 +9,6 @@ uint32_t cycles;
 void tm4c_setup(void)
 {
 	ROM_SysCtlClockSet(SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN|SYSCTL_USE_PLL|SYSCTL_SYSDIV_2_5);
-
-	ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-	while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF))
-		;
-	ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1);
-
 	ROM_SysTickPeriodSet(HZ/CYCLES-1);
 	sys_ticks = 0;
 	cycles = CYCLES/10;

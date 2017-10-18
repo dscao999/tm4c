@@ -7,25 +7,21 @@
 #include "driverlib/gpio.h"
 #include "driverlib/rom.h"
 
+enum GPIOPORT { GPIOA = 0, GPIOB = 1, GPIOC = 2, GPIOD = 3, GPIOE = 4, GPIOF = 5};
 struct gpio_port {
 	uint32_t base;
-	uint32_t sysperip;
-	uint32_t mis;
-	uint32_t pos;
-	uint16_t intr;
-	uint16_t err;
-	uint16_t dir;
-	uint16_t index;
+	uint32_t ctl;
+	uint8_t data;
+	uint8_t dir;
+	uint8_t afsel;
+	uint8_t den;
 };
 
-void tm4c_gpio_config(int port, uint32_t pos);
-void tm4c_gpio_setup(int port, uint32_t pos);
 
-void tm4c_gpio_reset(int port, uint32_t pos);
+void gpioc_isr(void);
+void gpiod_isr(void);
 
-void gpio0_isr(void);
-void gpio1_isr(void);
-
-uint32_t tm4c_gpio_getpos(int port);
+void tm4c_gpio_setup(enum GPIOPORT port);
+void tm4c_gpio_getconf(enum GPIOPORT port);
 
 #endif /* TM4C_GPIO_DSCAO__ */

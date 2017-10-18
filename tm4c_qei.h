@@ -9,19 +9,10 @@
 
 struct qei_port {
 	uint32_t base;
-	uint32_t sysperip;
-	uint32_t mis;
-	uint32_t pos;
-	uint16_t intr;
 	uint16_t err;
-	uint16_t dir;
-	uint16_t index;
 };
 
-void tm4c_qei_config(int port, uint32_t pos);
 void tm4c_qei_setup(int port, uint32_t pos);
-
-void tm4c_qei_reset(int port, uint32_t pos);
 
 void qei0_isr(void);
 void qei1_isr(void);

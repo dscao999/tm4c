@@ -12,85 +12,64 @@
 static uint32_t qei0_isr_nums = 0;
 static uint32_t qei1_isr_nums = 0;
 
-struct qei_port qeims[] = {
+static struct qei_port qeims[] = {
 	{
 		.base = QEI0_BASE,
-		.sysperip = SYSCTL_PERIPH_QEI0,
-		.intr = INT_QEI0
 	},
 	{
 		.base = QEI1_BASE,
-		.sysperip = SYSCTL_PERIPH_QEI1,
-		.intr = INT_QEI1
 	}
 };
 
-static inline void tm4c_qei_filter(struct qei_port *qei, uint32_t filt)
+static void qei_config(uint32_t base, int intr,  uint32_t pos)
 {
-	uint32_t qeictl;
-
-	qeictl = HWREG(qei->base+QEI_O_CTL) & ~QEI_CTL_FILTCNT_M;
-	HWREG(qei->base+QEI_O_CTL) = qeictl|filt|QEI_CTL_FILTEN;
-}
-
-static void qei_config(struct qei_port *qei, uint32_t pos)
-{
-	uint32_t qeimode;
+	uint32_t qeimode, qeictl;
 
 	qeimode = QEI_CONFIG_CAPTURE_A|QEI_CONFIG_NO_RESET|QEI_CONFIG_QUADRATURE;
-	ROM_QEIConfigure(qei->base, qeimode, 0xffffffffu);
-	tm4c_qei_filter(qei, QEI_FILTCNT_12);
-	ROM_QEIIntEnable(qei->base, QEI_INTERROR);
-	ROM_IntPrioritySet(qei->intr, 0xc0);
-	HWREG(qei->base+QEI_O_POS) = pos;
-	ROM_QEIEnable(qei->base);
-	ROM_IntEnable(qei->intr);
-}
-
-void tm4c_qei_config(int port, uint32_t pos)
-{
-	struct qei_port *qei;
-
-	qei = qeims+port;
-	qei_config(qei, pos);
+	ROM_QEIConfigure(base, qeimode, 0xffffffffu);
+	qeictl = HWREG(base+QEI_O_CTL) & ~QEI_CTL_FILTCNT_M;
+	HWREG(base+QEI_O_CTL) = qeictl|QEI_FILTCNT_12|QEI_CTL_FILTEN;
+	ROM_QEIIntEnable(base, QEI_INTERROR);
+	ROM_IntPrioritySet(intr, 0xc0);
+	HWREG(base+QEI_O_POS) = pos;
+	ROM_QEIEnable(base);
+	ROM_IntEnable(intr);
 }
 
 void tm4c_qei_setup(int port, uint32_t pos)
 {
 	struct qei_port *qei;
-	uint32_t v;
+	uint32_t sysperip, v;
+	int intr;
 
 	qei = qeims+port;
 	switch (port) {
 	case 0:
-		ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-		while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOD))
-			;
 		HWREG(GPIO_PORTD_BASE+GPIO_O_LOCK) = GPIO_LOCK_KEY;
 		v = HWREG(GPIO_PORTD_BASE+GPIO_O_CR);
 		HWREG(GPIO_PORTD_BASE+GPIO_O_CR) = v|0x0ff;
 		ROM_GPIOPinTypeQEI(GPIO_PORTD_BASE, GPIO_PIN_6|GPIO_PIN_7);
 		ROM_GPIOPinConfigure(GPIO_PD6_PHA0);
 		ROM_GPIOPinConfigure(GPIO_PD7_PHB0);
+		sysperip = SYSCTL_PERIPH_QEI0;
+		intr = INT_QEI0;
 		break;
 	case 1:
-		ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
-		while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOC))
-			;
-		ROM_GPIOPinTypeQEI(GPIO_PORTC_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6);
-		ROM_GPIOPinConfigure(GPIO_PC4_IDX1);
+		ROM_GPIOPinTypeQEI(GPIO_PORTC_BASE, GPIO_PIN_5|GPIO_PIN_6);
 		ROM_GPIOPinConfigure(GPIO_PC5_PHA1);
 		ROM_GPIOPinConfigure(GPIO_PC6_PHB1);
+		sysperip = SYSCTL_PERIPH_QEI1;
+		intr = INT_QEI1;
 		break;
 	default:
 		while(1)
 			;
 	}
 
-	ROM_SysCtlPeripheralEnable(qei->sysperip);
-	while(!ROM_SysCtlPeripheralReady(qei->sysperip))
+	ROM_SysCtlPeripheralEnable(sysperip);
+	while(!ROM_SysCtlPeripheralReady(sysperip))
 			;
-	qei_config(qei, pos);
+	qei_config(qei->base, intr, pos);
 }
 
 static void qei_isr(struct qei_port *qei)
@@ -102,12 +81,7 @@ static void qei_isr(struct qei_port *qei)
 		HWREG(qei->base+QEI_O_ISC) = isc;
 	if (isc & QEI_INTEN_ERROR)
 		qei->err++;
-	if (isc & QEI_INTEN_DIR)
-		qei->dir++;
-	if (isc & QEI_INTEN_INDEX)
-		qei->index++;
-	qei->mis = isc;
-	qei->pos = HWREG(qei->base+QEI_O_POS);
+	isc = HWREG(qei->base+QEI_O_ISC);
 }
 
 void qei0_isr(void)
@@ -119,17 +93,6 @@ void qei1_isr(void)
 {
 	qei_isr(qeims+1);
 	qei1_isr_nums++;
-}
-
-void tm4c_qei_reset(int port, uint32_t pos)
-{
-	struct qei_port *qei;
-
-	qei = qeims+port;
-	ROM_SysCtlPeripheralReset(qei->sysperip);
-	while(!ROM_SysCtlPeripheralReady(qei->sysperip))
-		;
-	qei_config(qei, pos);
 }
 
 uint32_t tm4c_qei_getpos(int port)
