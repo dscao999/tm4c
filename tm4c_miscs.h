@@ -53,10 +53,7 @@ static inline void tm4c_waitint(void)
 }
 static inline void tm4c_reset(void)
 {
-	uint32_t v;
-
-	v = HWREG(NVIC_APINT) & 0x0ffff;
-	HWREG(NVIC_APINT) = v|0x05fa0000|NVIC_APINT_SYSRESETREQ;
+	HWREG(NVIC_APINT) = NVIC_APINT_VECTKEY|NVIC_APINT_SYSRESETREQ;
 	while (1)
 		;
 }

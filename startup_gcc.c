@@ -271,6 +271,7 @@ ResetISR(void)
 	// Note that this does not use DriverLib since it might not be included in
 	// this project.
 	//
+	HWREG(NVIC_FPCC) &= ~(NVIC_FPCC_ASPEN | NVIC_FPCC_LSPEN);
 	HWREG(NVIC_CPAC) = ((HWREG(NVIC_CPAC) &
 			~(NVIC_CPAC_CP10_M | NVIC_CPAC_CP11_M)) |
 			NVIC_CPAC_CP10_FULL | NVIC_CPAC_CP11_FULL);
