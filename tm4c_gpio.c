@@ -89,15 +89,20 @@ void tm4c_gpio_setup(enum GPIOPORT port)
 	ROM_SysCtlPeripheralEnable(sysperip);
 	while(!ROM_SysCtlPeripheralReady(sysperip))
                         ;
-	if (in_pins)
+	if (in_pins) {
 		ROM_GPIOPinTypeGPIOInput(gpio->base, in_pins);
-	if (out_pins)
+		HWREG(gpio->base+GPIO_O_PDR) = in_pins;
+	}
+	if (out_pins) {
 		ROM_GPIOPinTypeGPIOOutput(gpio->base, out_pins);
+		HWREG(gpio->base+GPIO_O_PDR) = out_pins;
+	}
 	if (int_pins && intr) {
 		HWREG(gpio->base+GPIO_O_IM) = 0;
 		ROM_GPIOIntTypeSet(gpio->base, int_pins, GPIO_BOTH_EDGES);
-		ROM_IntPrioritySet(intr, 0x60);
+		HWREG(gpio->base+GPIO_O_ICR) = 0x0ff;
 		HWREG(gpio->base+GPIO_O_IM) = int_pins;
+		ROM_IntPrioritySet(intr, 0x60);
 		ROM_IntEnable(intr);
 	}
 }

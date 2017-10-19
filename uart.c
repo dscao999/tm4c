@@ -27,9 +27,6 @@ void uart_open(int port)
 	baud = 115200;
 	switch(port) {
 	case 0:
-		ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-		while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA))
-			;
 		ROM_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0|GPIO_PIN_1);
 		ROM_GPIOPinConfigure(GPIO_PA0_U0RX);
 		ROM_GPIOPinConfigure(GPIO_PA1_U0TX);
@@ -84,6 +81,7 @@ void uart_open(int port)
 		UART_CONFIG_WLEN_8|UART_CONFIG_STOP_ONE|UART_CONFIG_PAR_NONE);
 	ROM_UARTFIFOLevelSet(uart->base, UART_FIFO_TX2_8, UART_FIFO_RX6_8);
 	ROM_UARTFIFOEnable(uart->base);
+	HWREG(uart->base+UART_O_ICR) = 0x0172;
 	imask = UART_INT_OE|UART_INT_FE|UART_INT_TX|UART_INT_RX|UART_INT_RT;
 	ROM_UARTIntEnable(uart->base, imask);
 	ROM_IntPrioritySet(intr, 0xe0);

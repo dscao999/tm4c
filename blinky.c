@@ -67,6 +67,7 @@ int main(void)
 	tm4c_setup();
 	tm4c_dma_enable();
 	tm4c_gpio_setup(GPIOF);
+	tm4c_gpio_setup(GPIOA);
 	tm4c_ledblink(GREEN, 10, 5);
 	tm4c_gpio_setup(GPIOC);
 	tm4c_gpio_setup(GPIOD);
