@@ -9,27 +9,33 @@
 #include "tm4c_miscs.h"
 #include "tm4c_gpio.h"
 
-static uint32_t gpioc_isr_nums = 0;
-static uint32_t gpiod_isr_nums = 0;
+uint32_t gpioc_isr_nums = 0;
+uint32_t gpiod_isr_nums = 0;
 
 static struct gpio_port gpioms[] = {
 	{
 		.base = GPIO_PORTA_BASE,
+		.mis = 0
 	},
 	{
 		.base = GPIO_PORTB_BASE,
+		.mis = 0
 	},
 	{
 		.base = GPIO_PORTC_BASE,
+		.mis = 0
 	},
 	{
 		.base = GPIO_PORTD_BASE,
+		.mis = 0
 	},
 	{
 		.base = GPIO_PORTE_BASE,
+		.mis = 0
 	},
 	{
 		.base = GPIO_PORTF_BASE,
+		.mis = 0
 	}
 };
 
@@ -99,7 +105,8 @@ void tm4c_gpio_setup(enum GPIOPORT port)
 	}
 	if (int_pins && intr) {
 		HWREG(gpio->base+GPIO_O_IM) = 0;
-		ROM_GPIOIntTypeSet(gpio->base, int_pins, GPIO_BOTH_EDGES);
+		ROM_GPIOIntTypeSet(gpio->base, int_pins, GPIO_FALLING_EDGE);
+		HWREG(gpio->base+GPIO_O_DEN) |= int_pins;
 		HWREG(gpio->base+GPIO_O_ICR) = 0x0ff;
 		HWREG(gpio->base+GPIO_O_IM) = int_pins;
 		ROM_IntPrioritySet(intr, 0x60);
@@ -107,25 +114,11 @@ void tm4c_gpio_setup(enum GPIOPORT port)
 	}
 }
 
-void tm4c_gpio_getconf(enum GPIOPORT port)
-{
-	struct gpio_port *gpio;
-
-	gpio = gpioms + port;
-	gpio->data = HWREG(((gpio->base+GPIO_O_DATA)|(0x0ff << 2))) & 0x0ff;
-	gpio->dir = HWREG(gpio->base+GPIO_O_DIR) & 0x0ff;
-	gpio->afsel = HWREG(gpio->base+GPIO_O_AFSEL) & 0x0ff;
-	gpio->den = HWREG(gpio->base+GPIO_O_DEN) & 0x0ff;
-	gpio->ctl = HWREG(gpio->base+GPIO_O_PCTL);
-}
-
 static void gpio_isr(struct gpio_port *gpio)
 {
-	uint32_t mis;
-
-	mis = HWREG(gpio->base+GPIO_O_MIS);
-	HWREG(gpio->base+GPIO_O_ICR) = mis;
-	mis = HWREG(gpio->base+GPIO_O_MIS);
+	gpio->mis = HWREG(gpio->base+GPIO_O_MIS);
+	HWREG(gpio->base+GPIO_O_ICR) = gpio->mis & 0x0ff;
+	HWREG(gpio->base+GPIO_O_IM) &= ~gpio->mis;
 }
 
 void gpioc_isr(void)
@@ -142,4 +135,20 @@ void gpiod_isr(void)
 
 	gpio_isr(gpio);
 	gpiod_isr_nums++;
+}
+
+int tm4c_gpio_intpin(enum GPIOPORT port, uint32_t pins)
+{
+	struct gpio_port *gpio = gpioms + port;
+	
+	int retv;
+
+	retv = 0;
+	if (gpio->mis & pins) {
+		gpio->mis &= ~pins;
+		HWREG(gpio->base+GPIO_O_ICR) = pins;
+		HWREG(gpio->base+GPIO_O_IM) |= pins;
+		retv = 1;
+	}
+	return retv;
 }

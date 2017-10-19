@@ -91,14 +91,16 @@ int main(void)
 			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
 				tm4c_reset();
 			if (memcmp(mesg, "PoS", 3) == 0) {
-				tm4c_gpio_getconf(GPIOC);
-				tm4c_gpio_getconf(GPIOD);
 				hex2ascii(tm4c_qei_getpos(0), mesg);
-				mesg[8] = '\n';
-				uart_write(0, mesg, 9);
-				hex2ascii(tm4c_qei_getpos(1), mesg+16);
-				mesg[24] = '\n';
-				uart_write(0, mesg+16, 9);
+				mesg[8] = '-';
+				hex2ascii(gpioc_isr_nums, mesg+9);
+				mesg[17] = '\n';
+				uart_write(0, mesg, 18);
+				hex2ascii(tm4c_qei_getpos(1), mesg+20);
+				mesg[28] = '-';
+				hex2ascii(gpiod_isr_nums, mesg+29);
+				mesg[37] = '\n';
+				uart_write(0, mesg+20, 18);
 			} else
 				uart_write(0, mesg, rlen);
 			buf = mesg;
@@ -107,6 +109,8 @@ int main(void)
 		}
 		buf += count;
 		len -= count;
+		if (tm4c_gpio_intpin(GPIOD, GPIO_PIN_3))
+			uart_write(0, "Button Pressed!\n", 16);
 	}
 
 	uart_close(0);
