@@ -7,7 +7,7 @@
 #include "driverlib/udma.h"
 #include "tm4c_miscs.h"
 #include "tm4c_dma.h"
-#include "uart.h"
+#include "tm4c_uart.h"
 
 static volatile uint32_t uart0_isr_nums = 0;
 static volatile uint32_t uart1_isr_nums = 0;

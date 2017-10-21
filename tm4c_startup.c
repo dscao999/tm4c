@@ -27,7 +27,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_udma.h"
 #include "tm4c_miscs.h"
-#include "uart.h"
+#include "tm4c_uart.h"
 #include "tm4c_qei.h"
 #include "tm4c_gpio.h"
 

@@ -42,7 +42,7 @@ SECTIONS
 	.bss :
 	{
 		_bss = .;
-		startup_gcc.o(.bss*)
+		tm4c_startup.o(.bss*)
 		tm4c_dma.o(.bss*)
 		*(.bss*)
 		*(COMMON)
