@@ -10,12 +10,19 @@
 #include "uart.h"
 
 static volatile uint32_t uart0_isr_nums = 0;
+static volatile uint32_t uart1_isr_nums = 0;
 static struct uart_port uartms[] = {
 	{
 		.base = UART0_BASE,
 		.rxhead = 0,
 		.rxtail = 0,
 		.tx_dmach = UDMA_CHANNEL_UART0TX
+	},
+	{
+		.base = UART1_BASE,
+		.rxhead = 0,
+		.rxtail = 0,
+		.tx_dmach = UDMA_CHANNEL_UART1TX
 	}
 };
 
@@ -35,37 +42,35 @@ void uart_open(int port)
 		intr = INT_UART0;
 		break;
 	case 1:
-		uart->base = UART1_BASE;
+		ROM_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0|GPIO_PIN_1);
+		ROM_GPIOPinConfigure(GPIO_PB0_U1RX);
+		ROM_GPIOPinConfigure(GPIO_PB1_U1TX);
+		ROM_uDMAChannelAssign(UDMA_CH23_UART1TX);
 		periph = SYSCTL_PERIPH_UART1;
 		intr = INT_UART1;
+		baud = 9600;
 		break;
 	case 2:
-		uart->base = UART2_BASE;
 		periph = SYSCTL_PERIPH_UART2;
 		intr = INT_UART2;
 		break;
 	case 3:
-		uart->base = UART3_BASE;
 		periph = SYSCTL_PERIPH_UART3;
 		intr = INT_UART3;
 		break;
 	case 4:
-		uart->base = UART4_BASE;
 		periph = SYSCTL_PERIPH_UART4;
 		intr = INT_UART4;
 		break;
 	case 5:
-		uart->base = UART5_BASE;
 		periph = SYSCTL_PERIPH_UART5;
 		intr = INT_UART5;
 		break;
 	case 6:
-		uart->base = UART6_BASE;
 		periph = SYSCTL_PERIPH_UART6;
 		intr = INT_UART6;
 		break;
 	case 7:
-		uart->base = UART7_BASE;
 		periph = SYSCTL_PERIPH_UART7;
 		intr = INT_UART7;
 		break;
@@ -81,7 +86,8 @@ void uart_open(int port)
 		UART_CONFIG_WLEN_8|UART_CONFIG_STOP_ONE|UART_CONFIG_PAR_NONE);
 	ROM_UARTFIFOLevelSet(uart->base, UART_FIFO_TX2_8, UART_FIFO_RX6_8);
 	ROM_UARTFIFOEnable(uart->base);
-	HWREG(uart->base+UART_O_ICR) = 0x0172;
+	ROM_UARTIntEnable(uart->base, 0);
+	HWREG(uart->base+UART_O_ICR) = HWREG(uart->base+UART_O_RIS);
 	imask = UART_INT_OE|UART_INT_FE|UART_INT_TX|UART_INT_RX|UART_INT_RT;
 	ROM_UARTIntEnable(uart->base, imask);
 	ROM_IntPrioritySet(intr, 0xe0);
@@ -94,6 +100,9 @@ void uart_open(int port)
 
 	ROM_UARTEnable(uart->base);
 	ROM_IntEnable(intr);
+
+	while((HWREG(uart->base+UART_O_FR) & UART_FR_TXFE) == 0)
+		HWREG(uart->base+UART_O_DR);
 }
 
 static void uart_write_sync(struct uart_port *uart, const char *str, int len)
@@ -218,14 +227,12 @@ static void uart_recv(struct uart_port *uart)
 
 static void uart_isr(struct uart_port *uart)
 {
-	uint32_t icr, mis, err, udma_int;
+	uint32_t mis, err, udma_int;
 
 	err = 0;
 	mis = HWREG(uart->base+UART_O_MIS);
-	if (mis) {
-		icr = HWREG(uart->base+UART_O_ICR);
-		HWREG(uart->base+UART_O_ICR) = icr|mis;
-	}
+	if (mis)
+		HWREG(uart->base+UART_O_ICR) = mis;
 	udma_int = HWREG(UDMA_CHIS);
 	if (udma_int & (1 << uart->tx_dmach)) {
 		HWREG(UDMA_CHIS) = (1 << uart->tx_dmach);
@@ -241,7 +248,7 @@ static void uart_isr(struct uart_port *uart)
 		err = 1;
 	}
 	if (err)
-		HWREG(uart->base+UART_O_ECR) |= 0x0ff;
+		HWREG(uart->base+UART_O_ECR) = 0x0f;
 	if ((mis & UART_INT_RX) || (mis & UART_INT_RT))
 		uart_recv(uart);
 }
@@ -250,4 +257,10 @@ void uart0_isr(void)
 {
 	uart_isr(uartms);
 	uart0_isr_nums++;
+}
+
+void uart1_isr(void)
+{
+	uart_isr(uartms+1);
+	uart1_isr_nums++;
 }

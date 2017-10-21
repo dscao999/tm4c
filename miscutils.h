@@ -2,6 +2,16 @@
 #define MISCUTILS_DSCAO__
 #include <stdint.h>
 
+static inline void memcpy(void *dst, const void *src, int len)
+{
+	const uint8_t *psrc = src;
+	uint8_t *pdst = dst;
+	int i;
+
+	for(i = 0; i < len; i++, psrc++, pdst++)
+		*pdst = *psrc;
+}
+
 static inline int memcmp(const void *a, const void *b, int len)
 {
 	int i, retv;
@@ -20,6 +30,23 @@ static inline int memcmp(const void *a, const void *b, int len)
 		}
 	}
 	return retv;
+}
+
+static inline uint8_t dig2char(uint8_t v)
+{
+	return '0' + v;
+}
+
+static inline void dig2ascii(uint32_t v, char *buf)
+{
+	int tmp;
+
+	tmp = v;
+	*(buf+2) = dig2char(tmp % 10);
+	tmp /= 10;
+	*(buf+1) = dig2char(tmp % 10);
+	tmp /= 10;
+	*(buf) = dig2char(tmp % 10);
 }
 
 static inline uint8_t hex2char(uint8_t v)

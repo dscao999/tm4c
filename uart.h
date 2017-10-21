@@ -24,5 +24,6 @@ void uart_write(int port, const char *str, int len);
 int uart_read(int port, char *buf, int len, int wait);
 
 void uart0_isr(void);
+void uart1_isr(void);
 
 #endif /* TM4C_UART_DSCAO__ */

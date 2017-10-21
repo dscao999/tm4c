@@ -106,6 +106,7 @@ CFLAGS=-mthumb             \
        -Wall               \
        -pedantic           \
 	-fno-zero-initialized-in-bss \
+	-fno-builtin	\
        -c
 
 #

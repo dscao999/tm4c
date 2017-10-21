@@ -21,15 +21,7 @@ struct dmactl {
 	uint32_t dst_inc:2;
 	uint32_t reserv1;
 };
-extern struct dmactl dmacr[];
 
-static inline void tm4c_dma_enable(void)
-{
-	ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_UDMA);
-	while(!ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_UDMA))
-		;
-	ROM_uDMAEnable();
-	ROM_uDMAControlBaseSet(dmacr);
-}
+void tm4c_dma_enable(void);
 	
 #endif /* TM4C_DMA_DSCAO__ */

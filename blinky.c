@@ -56,25 +56,31 @@ __error__(char *pcFilename, uint32_t ui32Line)
 // Blink the on-board LED.
 //
 //*****************************************************************************
-
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
+static const char strled[] = "$001,1.48#";
 int main(void)
 {
-	char mesg[96], *buf;
-	int count, len, rlen;
+	char mesg[96], *buf, uart1_mesg[64], digit;
+	int count, len, rlen, cmdlen;
 
 	tm4c_setup();
 	tm4c_dma_enable();
 	tm4c_gpio_setup(GPIOF);
 	tm4c_gpio_setup(GPIOA);
+	tm4c_gpio_setup(GPIOB);
 	tm4c_ledblink(GREEN, 10, 5);
 	tm4c_gpio_setup(GPIOC);
 	tm4c_gpio_setup(GPIOD);
-	tm4c_qei_setup(0, 1);
-	tm4c_qei_setup(1, 2);
+	tm4c_qei_setup(0, 0);
+	tm4c_qei_setup(1, 0);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
+	uart_open(1);
+	cmdlen = strlen(strled);
+	memcpy(uart1_mesg, strled, cmdlen);
+	uart_write(0, uart1_mesg, cmdlen);
+	uart_write(1, uart1_mesg, cmdlen);
 
 	buf = mesg;
 	len = sizeof(mesg)-1;
@@ -101,6 +107,11 @@ int main(void)
 				hex2ascii(gpiod_isr_nums, mesg+29);
 				mesg[37] = '\n';
 				uart_write(0, mesg+20, 18);
+				digit = uart1_mesg[7] + 1;
+				if (digit > '9')
+					digit = '0';
+				uart1_mesg[7] = digit;
+				uart_write(1, uart1_mesg, cmdlen);
 			} else
 				uart_write(0, mesg, rlen);
 			buf = mesg;

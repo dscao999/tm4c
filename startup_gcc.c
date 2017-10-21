@@ -90,7 +90,7 @@ void (* const g_pfnVectors[])(void) =
 	gpiod_isr,			// GPIO Port D
 	IntDefaultHandler,			// GPIO Port E
 	uart0_isr,				// UART0 Rx and Tx
-	IntDefaultHandler,			// UART1 Rx and Tx
+	uart1_isr,			// UART1 Rx and Tx
 	IntDefaultHandler,			// SSI0 Rx and Tx
 	IntDefaultHandler,			// I2C0 Master and Slave
 	IntDefaultHandler,			// PWM Fault
