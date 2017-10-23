@@ -73,8 +73,8 @@ int main(void)
 	tm4c_gpio_setup(GPIOB);
 	tm4c_gpio_setup(GPIOC);
 	tm4c_gpio_setup(GPIOD);
-	tm4c_qei_setup(0, 0);
-	tm4c_qei_setup(1, 0);
+	tm4c_qei_setup(0, 0, 999, 0);
+	tm4c_qei_setup(1, 0, 999, 0);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 	uart_open(1);

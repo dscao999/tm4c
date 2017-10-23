@@ -10,13 +10,15 @@
 struct qei_port {
 	uint32_t base;
 	uint16_t err;
+	int16_t maxpos;
+	int16_t minpos;
 };
 
-void tm4c_qei_setup(int port, uint32_t pos);
+void tm4c_qei_setup(int port, uint32_t pos, int max, int min);
 
 void qei0_isr(void);
 void qei1_isr(void);
 
-uint32_t tm4c_qei_getpos(int port);
+int tm4c_qei_getpos(int port);
 
 #endif /* TM4C_QEI_DSCAO__ */

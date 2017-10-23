@@ -36,13 +36,15 @@ static void qei_config(uint32_t base, int intr,  uint32_t pos)
 	ROM_IntEnable(intr);
 }
 
-void tm4c_qei_setup(int port, uint32_t pos)
+void tm4c_qei_setup(int port, uint32_t pos, int maxpos, int minpos)
 {
 	struct qei_port *qei;
 	uint32_t sysperip, v;
 	int intr;
 
 	qei = qeims+port;
+	qei->maxpos = maxpos;
+	qei->minpos = minpos;
 	switch (port) {
 	case 0:
 		HWREG(GPIO_PORTD_BASE+GPIO_O_LOCK) = GPIO_LOCK_KEY;
@@ -95,10 +97,16 @@ void qei1_isr(void)
 	qei1_isr_nums++;
 }
 
-uint32_t tm4c_qei_getpos(int port)
+int tm4c_qei_getpos(int port)
 {
 	struct qei_port *qei;
+	int pos;
 
 	qei = qeims+port;
-	return HWREG(qei->base+QEI_O_POS);
+	pos = HWREG(qei->base+QEI_O_POS);
+	if (pos > qei->maxpos)
+		pos = qei->maxpos;
+	else if (pos < qei->minpos)
+		pos = qei->minpos;
+	return pos;
 }
