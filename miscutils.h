@@ -2,6 +2,65 @@
 #define MISCUTILS_DSCAO__
 #include <stdint.h>
 
+static inline uint32_t str2num_hex(const char *digits, int len)
+{
+	uint32_t result = 0;
+	int i, d;
+	const char *digit;
+
+	for (i = 0, digit = digits; i < len; i++, digit++) {
+		result <<= 4;
+		d = 0;
+		if (*digit >= '0' && *digit <= '9')
+			d = *digit - '0';
+		else if (*digit >= 'A' && *digit <= 'F')
+			d = *digit - 'A' + 10;
+		else if (*digit >= 'a' && *digit <= 'f')
+			d = *digit - 'a' + 10;
+		result |= d;
+	}
+	return result;
+}
+
+static inline uint32_t str2num_dec(const char *digits, int len)
+{
+	uint32_t result = 0;
+	int i, d;
+	const char *digit;
+
+	for (i = 0, digit = digits; i < len; i++, digit++) {
+		result *= 10;
+		d = *digit - '0';
+		result += d;
+	}
+	return result;
+}
+
+static inline uint16_t swap16(uint16_t v16)
+{
+	return (v16 >> 8)|(v16 << 8);
+}
+
+static inline void memset(void *dst, int v, int len)
+{
+	uint8_t *pdst = dst;
+	int i;
+
+	for (i = 0; i < len; i++, pdst++)
+		*pdst = v;
+}
+
+static inline int memchar(const char *str, uint8_t token)
+{
+	const char *pstr = str;
+	int tpos;
+
+	for (tpos = 0; tpos < 1024; tpos++, pstr++)
+		if (*pstr == token)
+			break;
+	return tpos;
+}
+
 static inline void memcpy(void *dst, const void *src, int len)
 {
 	const uint8_t *psrc = src;
@@ -32,24 +91,7 @@ static inline int memcmp(const void *a, const void *b, int len)
 	return retv;
 }
 
-static inline uint8_t dig2char(uint8_t v)
-{
-	return '0' + v;
-}
-
-static inline void dig2ascii(uint32_t v, char *buf)
-{
-	int tmp;
-
-	tmp = v;
-	*(buf+2) = dig2char(tmp % 10);
-	tmp /= 10;
-	*(buf+1) = dig2char(tmp % 10);
-	tmp /= 10;
-	*(buf) = dig2char(tmp % 10);
-}
-
-static inline uint8_t hex2char(uint8_t v)
+static inline uint8_t num2char_hex(uint8_t v)
 {
 	if (v > 9)
 		return 'a' + v - 10;
@@ -67,16 +109,30 @@ static inline int strlen(const char *str)
 	return i;
 }
 
-static inline void hex2ascii(uint32_t v, char *buf)
+static inline void bytes2str_hex(const uint8_t *pbyte, int len, char *buf)
 {
-	*(buf+7) = hex2char(v & 0x0f);
-	*(buf+6) = hex2char((v>>=4) & 0x0f);
-	*(buf+5) = hex2char((v>>=4) & 0x0f);
-	*(buf+4) = hex2char((v>>=4) & 0x0f);
-	*(buf+3) = hex2char((v>>=4) & 0x0f);
-	*(buf+2) = hex2char((v>>=4) & 0x0f);
-	*(buf+1) = hex2char((v>>=4) & 0x0f);
-	*(buf) = hex2char((v>>=4) & 0x0f);
+	int i;
+	const uint8_t *pcbyte;
+	char *pcbuf;
+
+	pcbuf = buf;
+	for (i = 0, pcbyte = pbyte; i < len; i++, pcbyte++) {
+		*pcbuf++ = num2char_hex(*pcbyte >> 4);
+		*pcbuf++ = num2char_hex(*pcbyte & 0x0f);
+		*pcbuf++ = ' ';
+	}
+}
+
+static inline void num2str_hex(uint32_t v, char *buf)
+{
+	*(buf+7) = num2char_hex(v & 0x0f);
+	*(buf+6) = num2char_hex((v>>=4) & 0x0f);
+	*(buf+5) = num2char_hex((v>>=4) & 0x0f);
+	*(buf+4) = num2char_hex((v>>=4) & 0x0f);
+	*(buf+3) = num2char_hex((v>>=4) & 0x0f);
+	*(buf+2) = num2char_hex((v>>=4) & 0x0f);
+	*(buf+1) = num2char_hex((v>>=4) & 0x0f);
+	*(buf) = num2char_hex((v>>=4) & 0x0f);
 }
 
 #endif /* MISCUTILS_DSCAO__ */

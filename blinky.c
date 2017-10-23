@@ -25,9 +25,10 @@
 #include "miscutils.h"
 #include "tm4c_miscs.h"
 #include "tm4c_dma.h"
-#include "uart.h"
+#include "tm4c_uart.h"
 #include "tm4c_qei.h"
 #include "tm4c_gpio.h"
+#include "led_display.h"
 
 //*****************************************************************************
 //
@@ -58,18 +59,18 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //*****************************************************************************
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
-static const char strled[] = "$001,1.48#";
+
 int main(void)
 {
-	char mesg[96], *buf, uart1_mesg[64], digit;
-	int count, len, rlen, cmdlen;
+	char mesg[96], *buf;
+	int count, len, rlen, qeipos, prev_qeipos;
+	uint32_t ticks, tleap;
 
 	tm4c_setup();
 	tm4c_dma_enable();
 	tm4c_gpio_setup(GPIOF);
 	tm4c_gpio_setup(GPIOA);
 	tm4c_gpio_setup(GPIOB);
-	tm4c_ledblink(GREEN, 10, 5);
 	tm4c_gpio_setup(GPIOC);
 	tm4c_gpio_setup(GPIOD);
 	tm4c_qei_setup(0, 0);
@@ -77,17 +78,20 @@ int main(void)
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 	uart_open(1);
-	cmdlen = strlen(strled);
-	memcpy(uart1_mesg, strled, cmdlen);
-	uart_write(0, uart1_mesg, cmdlen);
-	uart_write(1, uart1_mesg, cmdlen);
+	tm4c_ledblink(GREEN, 10, 5);
 
+	tleap = csec2tick(2);
 	buf = mesg;
 	len = sizeof(mesg)-1;
 	count = 0;
-	while(len > 0)
+	ticks = sys_ticks;
+	prev_qeipos = 0;
+	led_set_ppos(2);
+	tm4c_delay(10);
+	led_disp_int(0);
+	while(1)
 	{
-		count = uart_read(0, buf, len, 1);
+		count = uart_read(0, buf, len, 0);
 		for (rlen = 0; rlen < count; rlen++)
 			if (*(buf+rlen) == 0)
 				*(buf+rlen) = '\\';
@@ -96,32 +100,29 @@ int main(void)
 			rlen = strlen(mesg);
 			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
 				tm4c_reset();
-			if (memcmp(mesg, "PoS", 3) == 0) {
-				hex2ascii(tm4c_qei_getpos(0), mesg);
-				mesg[8] = '-';
-				hex2ascii(gpioc_isr_nums, mesg+9);
-				mesg[17] = '\n';
-				uart_write(0, mesg, 18);
-				hex2ascii(tm4c_qei_getpos(1), mesg+20);
-				mesg[28] = '-';
-				hex2ascii(gpiod_isr_nums, mesg+29);
-				mesg[37] = '\n';
-				uart_write(0, mesg+20, 18);
-				digit = uart1_mesg[7] + 1;
-				if (digit > '9')
-					digit = '0';
-				uart1_mesg[7] = digit;
-				uart_write(1, uart1_mesg, cmdlen);
-			} else
+			else
 				uart_write(0, mesg, rlen);
 			buf = mesg;
 			len = sizeof(mesg)-1;
 			count = 0;
 		}
+		if (sys_ticks - ticks >= tleap) {
+			qeipos = tm4c_qei_getpos(0);
+			if (qeipos != prev_qeipos) {
+				led_disp_int(qeipos);
+				prev_qeipos = qeipos;
+			}
+			ticks = sys_ticks;
+		}
 		buf += count;
 		len -= count;
 		if (tm4c_gpio_intpin(GPIOD, GPIO_PIN_3))
 			uart_write(0, "Button Pressed!\n", 16);
+		if (len <= 0) {
+			buf = mesg;
+			len = sizeof(mesg)-1;
+			count = 0;
+		}
 	}
 
 	uart_close(0);

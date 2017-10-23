@@ -22,7 +22,8 @@ static struct uart_port uartms[] = {
 		.base = UART1_BASE,
 		.rxhead = 0,
 		.rxtail = 0,
-		.tx_dmach = UDMA_CHANNEL_UART1TX
+		.tx_dmach = UDMA_CHANNEL_UART1TX,
+		.rx_dmach = UDMA_CHANNEL_UART1RX
 	}
 };
 
@@ -46,9 +47,9 @@ void uart_open(int port)
 		ROM_GPIOPinConfigure(GPIO_PB0_U1RX);
 		ROM_GPIOPinConfigure(GPIO_PB1_U1TX);
 		ROM_uDMAChannelAssign(UDMA_CH23_UART1TX);
+		ROM_uDMAChannelAssign(UDMA_CH22_UART1RX);
 		periph = SYSCTL_PERIPH_UART1;
 		intr = INT_UART1;
-		baud = 9600;
 		break;
 	case 2:
 		periph = SYSCTL_PERIPH_UART2;
@@ -95,8 +96,15 @@ void uart_open(int port)
 	ROM_uDMAChannelDisable(uart->tx_dmach);
 	ROM_uDMAChannelAttributeDisable(uart->tx_dmach, UDMA_ATTR_ALL);
 	ROM_uDMAChannelControlSet(uart->tx_dmach|UDMA_PRI_SELECT,
-		UDMA_SIZE_8|UDMA_SRC_INC_8|UDMA_DST_INC_NONE|UDMA_ARB_4);
+		UDMA_SIZE_8|UDMA_SRC_INC_8|UDMA_DST_INC_NONE|UDMA_ARB_8);
 	ROM_UARTDMAEnable(uart->base, UART_DMA_TX);
+	if (uart->rx_dmach) {
+		ROM_uDMAChannelDisable(uart->rx_dmach);
+		ROM_uDMAChannelAttributeDisable(uart->rx_dmach, UDMA_ATTR_ALL);
+		ROM_uDMAChannelControlSet(uart->rx_dmach|UDMA_PRI_SELECT,
+			UDMA_SIZE_8|UDMA_SRC_INC_NONE|UDMA_DST_INC_8|UDMA_ARB_8);
+		ROM_UARTDMADisable(uart->base, UART_DMA_RX);
+	}
 
 	ROM_UARTEnable(uart->base);
 	ROM_IntEnable(intr);
