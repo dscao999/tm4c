@@ -29,7 +29,7 @@ static void qei_config(uint32_t base, int intr,  uint32_t pos)
 	ROM_QEIConfigure(base, qeimode, 0xffffffffu);
 	qeictl = HWREG(base+QEI_O_CTL) & ~QEI_CTL_FILTCNT_M;
 	HWREG(base+QEI_O_CTL) = qeictl|QEI_FILTCNT_12|QEI_CTL_FILTEN;
-	ROM_QEIIntEnable(base, QEI_INTERROR);
+	ROM_QEIIntEnable(base, QEI_INTERROR|QEI_INTTIMER);
 	ROM_IntPrioritySet(intr, 0xc0);
 	HWREG(base+QEI_O_POS) = pos;
 	ROM_QEIEnable(base);
@@ -79,11 +79,15 @@ static void qei_isr(struct qei_port *qei)
 	uint32_t isc;
 
 	isc = HWREG(qei->base+QEI_O_ISC);
+	qei->mis = isc;
 	if (isc)
 		HWREG(qei->base+QEI_O_ISC) = isc;
 	if (isc & QEI_INTEN_ERROR)
 		qei->err++;
+	if (isc & QEI_INTTIMER)
+		qei->speed = HWREG(qei->base+QEI_O_SPEED);
 	isc = HWREG(qei->base+QEI_O_ISC);
+	qei->ctlreg = HWREG(qei->base+QEI_O_CTL);
 }
 
 void qei0_isr(void)
@@ -104,9 +108,49 @@ int tm4c_qei_getpos(int port)
 
 	qei = qeims+port;
 	pos = HWREG(qei->base+QEI_O_POS);
-	if (pos > qei->maxpos)
+	if (pos > qei->maxpos) {
 		pos = qei->maxpos;
-	else if (pos < qei->minpos)
+		HWREG(qei->base+QEI_O_POS) = pos;
+	} else if (pos < qei->minpos) {
 		pos = qei->minpos;
+		HWREG(qei->base+QEI_O_POS) = pos;
+	}
 	return pos;
+}
+
+void tm4c_qei_velconf(int port , uint32_t tintv)
+{
+	struct qei_port *qei = qeims + port;
+	ROM_QEIVelocityConfigure(qei->base, QEI_VELDIV_1, tintv);
+}
+
+void tm4c_qei_velstart(int port)
+{
+	struct qei_port *qei = qeims + port;
+	qei->speed = 0;
+	HWREG(qei->base+QEI_O_CTL) |= QEI_CTL_VELEN;
+}
+
+void tm4c_qei_velstop(int port)
+{
+	struct qei_port *qei = qeims + port;
+	HWREG(qei->base+QEI_O_CTL) &= ~(QEI_CTL_VELEN);
+}
+
+uint32_t tm4c_qei_velget(int port)
+{
+	struct qei_port *qei = qeims + port;
+	return qei->speed;
+}
+
+uint32_t tm4c_qei_getctl(int port)
+{
+	struct qei_port *qei = qeims + port;
+	return HWREG(qei->base+QEI_O_CTL);
+}
+
+int tm4c_qei_velproc(int port)
+{
+	struct qei_port *qei = qeims + port;
+	return HWREG(qei->base+QEI_O_CTL) & QEI_CTL_VELEN;
 }

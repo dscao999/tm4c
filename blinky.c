@@ -59,12 +59,12 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //*****************************************************************************
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
-
 int main(void)
 {
-	char mesg[96], *buf;
-	int count, len, rlen, qeipos, prev_qeipos;
-	uint32_t ticks, tleap;
+	char mesg[96], *buf, mesg1[12];
+	uint32_t ticks;
+	int16_t tleap, qeipos, prev_qeipos;
+	int8_t count, len, rlen;
 
 	tm4c_setup();
 	tm4c_dma_enable();
@@ -74,13 +74,13 @@ int main(void)
 	tm4c_gpio_setup(GPIOC);
 	tm4c_gpio_setup(GPIOD);
 	tm4c_qei_setup(0, 0, 999, 0);
-	tm4c_qei_setup(1, 0, 999, 0);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 	uart_open(1);
 	tm4c_ledblink(GREEN, 10, 5);
 
 	tleap = csec2tick(2);
+	tm4c_qei_velconf(0, HZ / 20 - 1);
 	buf = mesg;
 	len = sizeof(mesg)-1;
 	count = 0;
@@ -109,9 +109,17 @@ int main(void)
 		if (sys_ticks - ticks >= tleap) {
 			qeipos = tm4c_qei_getpos(0);
 			if (qeipos != prev_qeipos) {
+				if (!tm4c_qei_velproc(0))
+					tm4c_qei_velstart(0);
+				else {
+					num2str_hex(tm4c_qei_velget(0), mesg1);
+					mesg1[8] = '\n';
+					uart_write(0, mesg1, 9);
+				}
 				led_disp_int(qeipos);
 				prev_qeipos = qeipos;
-			}
+			} else
+				tm4c_qei_velstop(0);
 			ticks = sys_ticks;
 		}
 		buf += count;
