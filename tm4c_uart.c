@@ -35,6 +35,8 @@ void uart_open(int port)
 	baud = 115200;
 	switch(port) {
 	case 0:
+		ROM_GPIOPadConfigSet(GPIO_PORTA_BASE, GPIO_PIN_1,
+			GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
 		ROM_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0|GPIO_PIN_1);
 		ROM_GPIOPinConfigure(GPIO_PA0_U0RX);
 		ROM_GPIOPinConfigure(GPIO_PA1_U0TX);
@@ -43,6 +45,8 @@ void uart_open(int port)
 		intr = INT_UART0;
 		break;
 	case 1:
+		ROM_GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_1,
+			GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
 		ROM_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0|GPIO_PIN_1);
 		ROM_GPIOPinConfigure(GPIO_PB0_U1RX);
 		ROM_GPIOPinConfigure(GPIO_PB1_U1TX);
