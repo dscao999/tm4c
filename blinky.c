@@ -80,7 +80,7 @@ int main(void)
 	tm4c_ledblink(GREEN, 10, 5);
 
 	tleap = csec2tick(2);
-	tm4c_qei_velconf(0, HZ / 20 - 1);
+	tm4c_qei_velconf(0, HZ / 20);
 	buf = mesg;
 	len = sizeof(mesg)-1;
 	count = 0;

@@ -30,6 +30,11 @@ static inline int csec2tick(int csecs)
 	return cycles*csecs;
 }
 
+static inline void tm4c_memsync(void)
+{
+	__asm__ __volatile__("dsb");
+}
+
 void tm4c_setup(void);
 void tm4c_ledlit(enum led_type led, int csecs);
 static inline void tm4c_delay(int csecs)
@@ -47,9 +52,7 @@ static inline void tm4c_ledblink(enum led_type led, int on, int off)
 }
 static inline void tm4c_waitint(void)
 {
-	HWREG(NVIC_ST_CTRL) &= ~(NVIC_ST_CTRL_ENABLE);
 	__asm__ __volatile__("wfi");
-	HWREG(NVIC_ST_CTRL) |= NVIC_ST_CTRL_ENABLE;
 }
 static inline void tm4c_reset(void)
 {

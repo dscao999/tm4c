@@ -30,7 +30,7 @@ static void qei_config(uint32_t base, int intr,  uint32_t pos)
 	qeictl = HWREG(base+QEI_O_CTL) & ~QEI_CTL_FILTCNT_M;
 	HWREG(base+QEI_O_CTL) = qeictl|QEI_FILTCNT_12|QEI_CTL_FILTEN;
 	ROM_QEIIntEnable(base, QEI_INTERROR|QEI_INTTIMER);
-	ROM_IntPrioritySet(intr, 0xc0);
+	ROM_IntPrioritySet(intr, 0x80);
 	HWREG(base+QEI_O_POS) = pos;
 	ROM_QEIEnable(base);
 	ROM_IntEnable(intr);
@@ -80,8 +80,10 @@ static void qei_isr(struct qei_port *qei)
 
 	isc = HWREG(qei->base+QEI_O_ISC);
 	qei->mis = isc;
-	if (isc)
+	if (isc) {
 		HWREG(qei->base+QEI_O_ISC) = isc;
+		tm4c_memsync();
+	}
 	if (isc & QEI_INTEN_ERROR)
 		qei->err++;
 	if (isc & QEI_INTTIMER)

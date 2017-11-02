@@ -246,6 +246,7 @@ static void uart_isr(struct uart_port *uart)
 		HWREG(UDMA_CHIS) = (1 << uart->tx_dmach);
 		uart->txdma = 0;
 	}
+	tm4c_memsync();
 
 	if (mis & UART_INT_OE) {
 		uart->oerr++;
