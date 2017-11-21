@@ -68,7 +68,6 @@ int main(void)
 
 	tm4c_setup();
 	tm4c_dma_enable();
-	tm4c_gpio_setup(GPIOF);
 	tm4c_gpio_setup(GPIOA);
 	tm4c_gpio_setup(GPIOB);
 	tm4c_gpio_setup(GPIOC);
@@ -77,18 +76,17 @@ int main(void)
 	uart_open(0);
 	uart_write(0, hello, strlen(hello));
 	uart_open(1);
-	tm4c_ledblink(GREEN, 10, 5);
+	tm4c_ledlit(GREEN, 10);
 
-	tleap = csec2tick(2);
+	tleap = csec2tick(20);
 	tm4c_qei_velconf(0, HZ / 20);
 	buf = mesg;
 	len = sizeof(mesg)-1;
 	count = 0;
 	ticks = sys_ticks;
 	prev_qeipos = 0;
-	led_set_ppos(2);
 	tm4c_delay(10);
-	led_disp_int(0);
+	led_display_init();
 	while(1)
 	{
 		count = uart_read(0, buf, len, 0);
@@ -112,14 +110,15 @@ int main(void)
 				if (!tm4c_qei_velproc(0))
 					tm4c_qei_velstart(0);
 				else {
-					num2str_hex(tm4c_qei_velget(0), mesg1);
-					mesg1[8] = '\n';
-					uart_write(0, mesg1, 9);
+					rlen = num2str_hex(tm4c_qei_velget(0), mesg1);
+					mesg1[rlen] = '\n';
+					uart_write(0, mesg1, rlen+1);
 				}
-				led_disp_int(qeipos);
+				led_display_int(qeipos);
 				prev_qeipos = qeipos;
 			} else
 				tm4c_qei_velstop(0);
+			led_display_int(qeipos);
 			ticks = sys_ticks;
 		}
 		buf += count;

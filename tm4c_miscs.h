@@ -45,11 +45,7 @@ static inline void tm4c_delay(int csecs)
 	while (time_before(sys_ticks, mark))
 		__asm__ __volatile__("wfi");
 }
-static inline void tm4c_ledblink(enum led_type led, int on, int off)
-{
-	tm4c_ledlit(led, on);
-	tm4c_delay(off);
-}
+
 static inline void tm4c_waitint(void)
 {
 	__asm__ __volatile__("wfi");

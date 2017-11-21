@@ -17,7 +17,7 @@ static inline uint32_t str2num_hex(const char *digits, int len)
 			d = *digit - 'A' + 10;
 		else if (*digit >= 'a' && *digit <= 'f')
 			d = *digit - 'a' + 10;
-		result |= d;
+		result += d;
 	}
 	return result;
 }
@@ -50,12 +50,12 @@ static inline void memset(void *dst, int v, int len)
 		*pdst = v;
 }
 
-static inline int memchar(const char *str, uint8_t token)
+static inline int memchar(const char *str, int len, uint8_t token)
 {
 	const char *pstr = str;
 	int tpos;
 
-	for (tpos = 0; tpos < 1024; tpos++, pstr++)
+	for (tpos = 0; tpos < len; tpos++, pstr++)
 		if (*pstr == token)
 			break;
 	return tpos;
@@ -91,7 +91,7 @@ static inline int memcmp(const void *a, const void *b, int len)
 	return retv;
 }
 
-static inline uint8_t num2char_hex(uint8_t v)
+static inline char num2char_hex(uint8_t v)
 {
 	if (v > 9)
 		return 'a' + v - 10;
@@ -109,7 +109,7 @@ static inline int strlen(const char *str)
 	return i;
 }
 
-static inline void bytes2str_hex(const uint8_t *pbyte, int len, char *buf)
+static inline int bytes2str_hex(const uint8_t *pbyte, int len, char *buf)
 {
 	int i;
 	const uint8_t *pcbyte;
@@ -121,9 +121,10 @@ static inline void bytes2str_hex(const uint8_t *pbyte, int len, char *buf)
 		*pcbuf++ = num2char_hex(*pcbyte & 0x0f);
 		*pcbuf++ = ' ';
 	}
+	return pcbuf - buf;
 }
 
-static inline void num2str_hex(uint32_t v, char *buf)
+static inline int num2str_hex(uint32_t v, char *buf)
 {
 	*(buf+7) = num2char_hex(v & 0x0f);
 	*(buf+6) = num2char_hex((v>>=4) & 0x0f);
@@ -133,6 +134,39 @@ static inline void num2str_hex(uint32_t v, char *buf)
 	*(buf+2) = num2char_hex((v>>=4) & 0x0f);
 	*(buf+1) = num2char_hex((v>>=4) & 0x0f);
 	*(buf) = num2char_hex((v>>=4) & 0x0f);
+	return 8;
+}
+
+static inline int num2str_dec(const int v, char *buf)
+{
+	int neg, rlen, i;
+	uint32_t tv;
+	char *cbuf, cctmp;
+
+	neg = 0;
+	if (v < 0) {
+		neg = 1;
+		tv = -v;
+	} else
+		tv = v;
+
+	cbuf = buf;
+	while (tv > 0) {
+		*cbuf++ = '0' + tv % 10;
+		tv /= 10;
+	}
+	if (v == 0)
+		*cbuf++ = '0';
+	if (neg)
+		*cbuf++ = '-';
+	rlen = cbuf - buf;
+	for (i = 0; i < rlen/2; i++) {
+		cctmp = buf[i];
+		buf[i] = buf[rlen-i-1];
+		buf[rlen-i-1] = cctmp;
+	}
+
+	return rlen;
 }
 
 #endif /* MISCUTILS_DSCAO__ */

@@ -30,6 +30,7 @@
 #include "tm4c_uart.h"
 #include "tm4c_qei.h"
 #include "tm4c_gpio.h"
+#include "tm4c_ssi.h"
 
 //*****************************************************************************
 //
@@ -91,7 +92,7 @@ void (* const g_pfnVectors[])(void) =
 	IntDefaultHandler,			// GPIO Port E
 	uart0_isr,				// UART0 Rx and Tx
 	uart1_isr,			// UART1 Rx and Tx
-	IntDefaultHandler,			// SSI0 Rx and Tx
+	ssi0_isr,			// SSI0 Rx and Tx
 	IntDefaultHandler,			// I2C0 Master and Slave
 	IntDefaultHandler,			// PWM Fault
 	IntDefaultHandler,			// PWM Generator 0

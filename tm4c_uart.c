@@ -144,8 +144,6 @@ void uart_write(int port, const char *str, int len)
 	dmalen = len > 512? 512 : len;
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
-	while((HWREG(uart->base+UART_O_FR) & UART_FR_TXFE) == 0)
-		;
 	uart->txdma = 1;
 	ROM_uDMAChannelEnable(uart->tx_dmach);
 }
