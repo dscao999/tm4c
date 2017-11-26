@@ -276,7 +276,10 @@ void uart1_isr(void)
 	uart1_isr_nums++;
 }
 
-int uart_in_dma(int port)
+void uart_wait_dma(int port)
 {
-	return (uartms+port)->txdma;
+	struct uart_port *uart = uartms + port;
+
+	while (uart->txdma)
+		tm4c_waitint();
 }
