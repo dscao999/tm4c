@@ -1,4 +1,5 @@
 #include "tm4c_miscs.h"
+#include "tm4c_gpio.h"
 
 const uint32_t HZ = 80000000;
 const uint32_t CYCLES = 50;

@@ -6,8 +6,14 @@
 #include "led_display.h"
 
 static const char digits[]={0x7e,0x30,0x6d,0x79,0x33,0x5b,0x5f,0x70,0x7f,0x7b};
-enum regaddr {DECODE = 0x09, INTEN = 0x0a, SCAN = 0x0b, SHUT = 0x0c, TEST = 0x0f};
-static const int16_t num_digits = 3;
+
+#define DECODE_REG	0x09
+#define INTEN_REG	0x0a
+#define SCAN_REG	0x0b
+#define SHUT_REG	0x0c
+#define TEST_REG	0x0f
+
+#define num_digits	3
 
 static void led_display_clear(void)
 {
@@ -27,34 +33,38 @@ static void led_display_clear(void)
 
 void led_display_init(void)
 {
-	char cmd[36];
+	char cmd[64];
 	int pos;
 
 	tm4c_ssi_setup(0);
 
 	pos = 0;
-	memset(cmd, 0, 36);
-	cmd[pos+2] = SHUT;
+	memset(cmd, 0, 64);
+	cmd[pos+2] = SHUT_REG;
 	cmd[pos+3] = 1;
 	pos += 6;
-	cmd[pos+2] = TEST;
+	cmd[pos+2] = TEST_REG;
 	cmd[pos+3] = 0;
 	pos += 6;
-	cmd[pos+2] = DECODE;
+	cmd[pos+2] = DECODE_REG;
 	cmd[pos+3] = 0;
 	pos += 6;
-	cmd[pos+2] = SCAN;
+	cmd[pos+2] = SCAN_REG;
 	cmd[pos+3] = num_digits - 1;
 	pos += 6;
-	cmd[pos+2] = INTEN;
+	cmd[pos+2] = INTEN_REG;
 	cmd[pos+3] = 3;
 	pos += 6;
-	cmd[pos+2] = TEST;
-	cmd[pos+3] = 1;
-	tm4c_ssi_write(0, cmd, 36);
-	tm4c_delay(20);
+	cmd[pos+2] = TEST_REG;
+	cmd[pos+3] = 1; 
+	tm4c_ssi_write(0, cmd, pos+6);
+	tm4c_ssi_waitdma(0);
+	tm4c_ledlit(BLUE, 20);
+/*	cmd[2] = TEST_REG;
+	cmd[3] = 0;
+	tm4c_ssi_write(0, cmd, 6);
 
-	led_display_clear();
+	led_display_clear();*/
 }
 
 void led_display_int(int num)

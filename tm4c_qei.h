@@ -9,13 +9,10 @@
 
 struct qei_port {
 	uint32_t base;
-	uint32_t ctlreg;
+	uint16_t revos;
 	uint16_t err;
 	int16_t maxpos;
 	int16_t minpos;
-	uint16_t speed;
-	uint8_t ris;
-	uint8_t mis;
 };
 
 void tm4c_qei_setup(int port, uint32_t pos, int max, int min);

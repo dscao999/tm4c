@@ -7,6 +7,7 @@
 #include "driverlib/ssi.h"
 #include "driverlib/rom.h"
 
+#define SSI_BUFSIZ	64
 struct ssi_port {
 	uint32_t base;
 	uint32_t numr;
@@ -18,13 +19,12 @@ struct ssi_port {
 	volatile uint8_t txdma;
 	volatile uint8_t head;
 	uint8_t tail;
-	uint8_t buf[64];
+	char buf[SSI_BUFSIZ];
 };
 
 void tm4c_ssi_setup(int port);
 
 void ssi0_isr(void);
-void ssi1_isr(void);
 
 void tm4c_ssi_write(int port, const char *buf, int len);
 void tm4c_ssi_waitdma(int port);

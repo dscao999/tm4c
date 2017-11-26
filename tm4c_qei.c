@@ -29,10 +29,10 @@ static void qei_config(uint32_t base, int intr,  uint32_t pos)
 	ROM_QEIConfigure(base, qeimode, 0xffffffffu);
 	qeictl = HWREG(base+QEI_O_CTL) & ~QEI_CTL_FILTCNT_M;
 	HWREG(base+QEI_O_CTL) = qeictl|QEI_FILTCNT_12|QEI_CTL_FILTEN;
-	ROM_QEIIntEnable(base, QEI_INTERROR|QEI_INTTIMER);
+	HWREG(base+QEI_O_INTEN) |= (QEI_INTERROR|QEI_INTINDEX);
 	ROM_IntPrioritySet(intr, 0x80);
 	HWREG(base+QEI_O_POS) = pos;
-	ROM_QEIEnable(base);
+	HWREG(base+QEI_O_CTL) |= QEI_CTL_ENABLE;
 	ROM_IntEnable(intr);
 }
 
@@ -57,7 +57,8 @@ void tm4c_qei_setup(int port, uint32_t pos, int maxpos, int minpos)
 		intr = INT_QEI0;
 		break;
 	case 1:
-		ROM_GPIOPinTypeQEI(GPIO_PORTC_BASE, GPIO_PIN_5|GPIO_PIN_6);
+		ROM_GPIOPinTypeQEI(GPIO_PORTC_BASE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6);
+		ROM_GPIOPinConfigure(GPIO_PC4_IDX1);
 		ROM_GPIOPinConfigure(GPIO_PC5_PHA1);
 		ROM_GPIOPinConfigure(GPIO_PC6_PHB1);
 		sysperip = SYSCTL_PERIPH_QEI1;
@@ -79,17 +80,13 @@ static void qei_isr(struct qei_port *qei)
 	uint32_t isc;
 
 	isc = HWREG(qei->base+QEI_O_ISC);
-	qei->mis = isc;
-	if (isc) {
+	if (isc)
 		HWREG(qei->base+QEI_O_ISC) = isc;
-		tm4c_memsync();
-	}
 	if (isc & QEI_INTEN_ERROR)
 		qei->err++;
-	if (isc & QEI_INTTIMER)
-		qei->speed = HWREG(qei->base+QEI_O_SPEED);
+	if (isc & QEI_INTEN_INDEX)
+		qei->revos++;
 	isc = HWREG(qei->base+QEI_O_ISC);
-	qei->ctlreg = HWREG(qei->base+QEI_O_CTL);
 }
 
 void qei0_isr(void)
@@ -129,7 +126,6 @@ void tm4c_qei_velconf(int port , uint32_t tintv)
 void tm4c_qei_velstart(int port)
 {
 	struct qei_port *qei = qeims + port;
-	qei->speed = 0;
 	HWREG(qei->base+QEI_O_CTL) |= QEI_CTL_VELEN;
 }
 
@@ -142,7 +138,7 @@ void tm4c_qei_velstop(int port)
 uint32_t tm4c_qei_velget(int port)
 {
 	struct qei_port *qei = qeims + port;
-	return qei->speed;
+	return HWREG(qei->base+QEI_O_SPEED);
 }
 
 uint32_t tm4c_qei_getctl(int port)

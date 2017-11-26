@@ -9,6 +9,7 @@
 #include "driverlib/ssi.h"
 #include "driverlib/udma.h"
 #include "tm4c_miscs.h"
+#include "tm4c_dma.h"
 #include "tm4c_ssi.h"
 
 static uint32_t ssi0_isr_nums = 0;
@@ -59,6 +60,8 @@ void tm4c_ssi_setup(int port)
 	ROM_uDMAChannelAttributeDisable(ssi->tx_dmach, UDMA_ATTR_ALL);
 	ROM_uDMAChannelControlSet(ssi->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_SIZE_8|UDMA_SRC_INC_8|UDMA_DST_INC_NONE|UDMA_ARB_8);
+	ROM_uDMAChannelTransferSet(ssi->tx_dmach|UDMA_PRI_SELECT,
+		UDMA_MODE_BASIC, 0, (void *)(ssi->base+SSI_O_DR), 0);
 	ROM_SSIDMAEnable(ssi->base, SSI_DMA_TX);
 
 	while (HWREG(ssi->base+SSI_O_SR) & SSI_SR_RNE)
@@ -68,9 +71,8 @@ void tm4c_ssi_setup(int port)
 	ROM_uDMAChannelControlSet(ssi->rx_dmach|UDMA_PRI_SELECT,
 		UDMA_SIZE_8|UDMA_SRC_INC_NONE|UDMA_DST_INC_8|UDMA_ARB_8);
 	ROM_uDMAChannelTransferSet(ssi->rx_dmach|UDMA_PRI_SELECT,
-		UDMA_MODE_BASIC, (void *)(ssi->base+SSI_O_DR), (void *)ssi->buf, 64);
+		UDMA_MODE_BASIC, (void *)(ssi->base+SSI_O_DR), (void *)ssi->buf, SSI_BUFSIZ);
 	ROM_SSIDMAEnable(ssi->base, SSI_DMA_RX);
-	ROM_uDMAChannelEnable(ssi->rx_dmach);
 
 	HWREG(ssi->base+SSI_O_IM) = SSI_IM_RXIM|SSI_IM_RTIM|SSI_IM_RORIM;
 	ROM_IntPrioritySet(intr, 0xc0);
@@ -104,10 +106,10 @@ void tm4c_ssi_write(int port, const char *str, int len)
 
 	dmalen = len > 512? 512 : len;
 	ssi->numw += dmalen;
-	ROM_uDMAChannelTransferSet(ssi->tx_dmach|UDMA_PRI_SELECT,
-		UDMA_MODE_BASIC, (void *)str, (void *)(ssi->base+SSI_O_DR), dmalen);
+	tm4c_dma_set(ssi->tx_dmach, str, (void *)(ssi->base+SSI_O_DR), dmalen);
+	tm4c_dma_set(ssi->rx_dmach, (void *)(ssi->base+SSI_O_DR), ssi->buf, SSI_BUFSIZ);
 	ssi->txdma = 1;
-	ROM_uDMAChannelEnable(ssi->tx_dmach);
+	HWREG(UDMA_ENASET) = (1 << ssi->rx_dmach)|(1 << ssi->tx_dmach);
 }
 
 void tm4c_ssi_waitdma(int port)
@@ -138,16 +140,18 @@ static void ssi_isr(struct ssi_port *ssi)
 	if (mis & (SSI_MIS_RTMIS|SSI_MIS_RORMIS))
 		HWREG(ssi->base+SSI_O_ICR) = mis & (SSI_MIS_RTMIS|SSI_MIS_RORMIS);
 	udma_int = HWREG(UDMA_CHIS);
+	if (udma_int & (1 << ssi->rx_dmach)) {
+		HWREG(UDMA_CHIS) = (1 << ssi->rx_dmach);
+		ssi->numr += SSI_BUFSIZ;
+		ROM_uDMAChannelTransferSet(ssi->rx_dmach|UDMA_PRI_SELECT,
+			UDMA_MODE_BASIC, (void *)(ssi->base+SSI_O_DR), (void *)ssi->buf, SSI_BUFSIZ);
+		HWREG(UDMA_ENASET) = (1 << ssi->rx_dmach);
+	}
 	if (udma_int & (1 << ssi->tx_dmach)) {
 		HWREG(UDMA_CHIS) = (1 << ssi->tx_dmach);
 		ssi->txdma = 0;
-	}
-	if (udma_int & (1 << ssi->rx_dmach)) {
-		HWREG(UDMA_CHIS) = (1 << ssi->rx_dmach);
-		ssi->numr += 64;
-		ROM_uDMAChannelTransferSet(ssi->rx_dmach|UDMA_PRI_SELECT,
-			UDMA_MODE_BASIC, (void *)(ssi->base+SSI_O_DR), (void *)ssi->buf, 64);
-		ROM_uDMAChannelEnable(ssi->rx_dmach);
+		ssi->numr += SSI_BUFSIZ - tm4c_dma_rem(ssi->rx_dmach) - 1;
+		HWREG(UDMA_ENACLR) = 1 << ssi->rx_dmach;
 	}
 	if (mis & (SSI_MIS_RXMIS|SSI_MIS_RTMIS))
 		tm4c_ssi_recv(ssi);
