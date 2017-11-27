@@ -141,9 +141,9 @@ void uart_write(int port, const char *str, int len)
 	}
 
 	dmalen = len > 512? 512 : len;
-	tm4c_dma_set(uart->tx_dmach, str, (char *)(uart->base+UART_O_DR), dmalen);
-/*	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
-		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen); */
+/*	tm4c_dma_set(uart->tx_dmach, str, (char *)(uart->base+UART_O_DR), dmalen); */
+	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
+		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
 	uart->txdma = 1;
 	HWREG(uart->base+UART_O_DMACTL) |= UART_DMA_TX;
 	HWREG(UDMA_ENASET) = 1 << uart->tx_dmach;
