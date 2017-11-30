@@ -6,6 +6,7 @@
 #include "driverlib/uart.h"
 #include "driverlib/rom.h"
 
+#define UART_BUFSIZ	128
 struct uart_port {
 	uint32_t base;
 	uint16_t oerr;
@@ -15,13 +16,13 @@ struct uart_port {
 	volatile uint8_t txdma;
 	volatile uint8_t rxhead;
 	uint8_t rxtail;
-	uint8_t rxbuf[128];
+	uint8_t rxbuf[UART_BUFSIZ];
 };
 
 void uart_open(int port);
 void uart_close(int port);
 
-void uart_write(int port, const char *str, int len);
+void uart_write(int port, const char *str, int len, int wait);
 int uart_read(int port, char *buf, int len, int wait);
 void uart_wait_dma(int port);
 

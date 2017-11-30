@@ -128,7 +128,7 @@ static void uart_write_sync(struct uart_port *uart, const char *str, int len)
 	}
 }
 
-void uart_write(int port, const char *str, int len)
+void uart_write(int port, const char *str, int len, int wait)
 {
 	int dmalen;
 	struct uart_port *uart = uartms + port;
@@ -147,6 +147,8 @@ void uart_write(int port, const char *str, int len)
 	uart->txdma = 1;
 	HWREG(uart->base+UART_O_DMACTL) |= UART_DMA_TX;
 	HWREG(UDMA_ENASET) = 1 << uart->tx_dmach;
+	while (wait && uart->txdma)
+		tm4c_waitint();
 }
 
 int uart_read(int port, char *buf, int len, int wait)
@@ -224,15 +226,16 @@ void uart_close(int port)
 
 static void uart_recv(struct uart_port *uart)
 {
-	int32_t oh, nd;
+	int32_t head, lenrem;
 
-	oh = uart->rxhead;
-	nd = oh;
 	while ((HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0) {
-		uart->rxbuf[nd] = HWREG(uart->base+UART_O_DR) & 0x0ff;
-		nd = (nd + 1) & 0x7f;
+		head = uart->rxhead;
+		lenrem = UART_BUFSIZ - head;
+		uart->rxbuf[head++] = HWREG(uart->base+UART_O_DR);
+		while (--lenrem > 0 && (HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0)
+			uart->rxbuf[head++] = HWREG(uart->base+UART_O_DR);
+		uart->rxhead = head & 0x7f;
 	}
-	uart->rxhead = nd;
 }
 
 static void uart_isr(struct uart_port *uart)

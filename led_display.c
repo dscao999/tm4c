@@ -20,28 +20,27 @@ static inline uint16_t led_cmd(int addr, int v)
 
 void led_display_init(void)
 {
-	uint16_t cmd[8];
+	uint16_t cmd[16];
 	int pos;
 
 	tm4c_ssi_setup(0);
+	tm4c_ledlit(GREEN, 10);
 
 	pos = 0;
+	cmd[pos++] = led_cmd(SCAN_REG, 3);
+	cmd[pos++] = led_cmd(1, 1);
+	cmd[pos++] = led_cmd(2, 2);
+	cmd[pos++] = led_cmd(3, 3);
+	cmd[pos++] = led_cmd(4, 4);
+	cmd[pos++] = led_cmd(SHUT_REG, 0);
+	tm4c_ssi_write(0, cmd, pos, 1);
+
+/*	tm4c_ledlit(GREEN, 20);
+	pos = 0;
+	cmd[pos++] = 0;
 	cmd[pos++] = led_cmd(SHUT_REG, 1);
-	cmd[pos++] = led_cmd(TEST_REG, 1);
-	tm4c_ssi_write(0, cmd, pos);
-	tm4c_ssi_waitdma(0);
-	tm4c_ledlit(BLUE, 20);
-
-	pos = 0;
-	cmd[pos++] = led_cmd(TEST_REG, 0);
-	cmd[pos++] = led_cmd(DECODE_REG, 0);
-	cmd[pos++] = led_cmd(SCAN_REG, 2);
-	cmd[pos++] = led_cmd(INTEN_REG, 7);
-	cmd[pos++] = led_cmd(1, digits[0]);
-	cmd[pos++] = led_cmd(2, digits[0]);
-	cmd[pos++] = led_cmd(3, digits[0]);
-	tm4c_ssi_write(0, cmd, pos);
-	tm4c_ssi_waitdma(0);
+	cmd[pos++] = 0;
+	tm4c_ssi_write(0, cmd, pos, 1);*/
 }
 
 void led_display_int(int num)
@@ -68,6 +67,5 @@ void led_display_int(int num)
 	v /= 10;
 	cmd[cpos++] = led_cmd(3, digits[dig]);
 
-	tm4c_ssi_write(0, cmd, cpos);
-	tm4c_ssi_waitdma(0);
+	tm4c_ssi_write(0, cmd, cpos, 1);
 }

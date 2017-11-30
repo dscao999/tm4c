@@ -74,7 +74,7 @@ int main(void)
 	tm4c_gpio_setup(GPIOD);
 	tm4c_qei_setup(0, 0, 999, 0);
 	uart_open(0);
-	uart_write(0, hello, strlen(hello));
+	uart_write(0, hello, strlen(hello), 1);
 	uart_open(1);
 	tm4c_ledlit(GREEN, 10);
 
@@ -99,7 +99,7 @@ int main(void)
 			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
 				tm4c_reset();
 			else
-				uart_write(0, mesg, rlen);
+				uart_write(0, mesg, rlen, 1);
 			buf = mesg;
 			len = sizeof(mesg)-1;
 			count = 0;
@@ -112,7 +112,7 @@ int main(void)
 				else {
 					rlen = num2str_hex(tm4c_qei_velget(0), mesg1);
 					mesg1[rlen] = '\n';
-					uart_write(0, mesg1, rlen+1);
+					uart_write(0, mesg1, rlen+1, 1);
 				}
 				led_display_int(qeipos);
 				prev_qeipos = qeipos;
@@ -124,7 +124,7 @@ int main(void)
 		buf += count;
 		len -= count;
 		if (tm4c_gpio_intpin(GPIOD, GPIO_PIN_3))
-			uart_write(0, "Button Pressed!\n", 16);
+			uart_write(0, "Button Pressed!\n", 16, 1);
 		if (len <= 0) {
 			buf = mesg;
 			len = sizeof(mesg)-1;
