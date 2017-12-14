@@ -2,38 +2,53 @@
 #define MISCUTILS_DSCAO__
 #include <stdint.h>
 
+static inline int is_hexdigit(char c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+		(c >= 'A' && c <= 'F');
+}
+
 static inline uint32_t str2num_hex(const char *digits, int len)
 {
 	uint32_t result = 0;
 	int i, d;
 	const char *digit;
 
-	for (i = 0, digit = digits; i < len; i++, digit++) {
+	for (i = 0, digit = digits; i < len && is_hexdigit(*digit); i++) {
 		result <<= 4;
 		d = 0;
 		if (*digit >= '0' && *digit <= '9')
-			d = *digit - '0';
+			d = *digit++ - '0';
 		else if (*digit >= 'A' && *digit <= 'F')
-			d = *digit - 'A' + 10;
+			d = *digit++ - 'A' + 10;
 		else if (*digit >= 'a' && *digit <= 'f')
-			d = *digit - 'a' + 10;
+			d = *digit++ - 'a' + 10;
 		result += d;
 	}
 	return result;
 }
 
-static inline uint32_t str2num_dec(const char *digits, int len)
+static inline int str2num_dec(const char *digits, int len)
 {
 	uint32_t result = 0;
-	int i, d;
+	int i, d, neg;
+	char sign;
 	const char *digit;
 
-	for (i = 0, digit = digits; i < len; i++, digit++) {
+	digit = digits;
+	neg = 1;
+	sign = *digit;
+	if (sign == '-' || sign == '+') {
+		digit++;
+		if (sign == '-')
+			neg = -1;
+	}
+	for (i = 0; i < len && *digit >= '0' && *digit <= '9'; i++) {
 		result *= 10;
-		d = *digit - '0';
+		d = *digit++ - '0';
 		result += d;
 	}
-	return result;
+	return neg < 0? -result : result;
 }
 
 static inline uint16_t swap16(uint16_t v16)
