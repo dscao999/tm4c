@@ -84,12 +84,12 @@ int led_display_init(int numdisp, int popos)
 
 	pos = 0;
 	cmd[pos++] = led_cmd(TEST_REG, 1);
-	tm4c_ssi_write(0, cmd, pos, 1);
+	tm4c_ssi_write_sync(0, cmd, pos);
 	tm4c_delay(10);
 	pos = 0;
 	cmd[pos++] = led_cmd(TEST_REG, 0);
 	cmd[pos++] = led_cmd(SHUT_REG, 1);
-	tm4c_ssi_write(0, cmd, pos, 1);
+	tm4c_ssi_write_sync(0, cmd, pos);
 	tm4c_ledlit(RED, 10);
 
 	leddat.curnum = 0;
@@ -101,4 +101,22 @@ int led_display_int(int num)
 {
 	leddat.curnum = num;
 	return led_display();
+}
+
+void led_blink(int csec, int n)
+{
+	uint16_t cmd[10];
+	int pos, i;
+
+	i = 0;
+	do {
+		pos = 0;
+		cmd[pos++] = led_cmd(SHUT_REG, 0);
+		tm4c_ssi_write_sync(0, cmd, pos);
+		tm4c_delay(csec);
+		pos = 0;
+		cmd[pos++] = led_cmd(SHUT_REG, 1);
+		tm4c_ssi_write_sync(0, cmd, pos);
+		tm4c_delay(csec);
+	} while (++i < n);
 }

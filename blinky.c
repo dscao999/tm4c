@@ -130,25 +130,29 @@ int main(void)
 			len = strlen(mesg0);
 			memcpy(mesg0+len-1, "--Echoed!", 9);
 			mesg0[len+8] = 0x0d;
-			uart_write(1, mesg0, len+9, 1);
+			uart_write(1, mesg0, len+9, 0);
 			port0.buf = mesg0;
 			port0.rem = sizeof(mesg0) - 1;
 			qeipos = str2num_dec(mesg0, len - 1);
 			if (qeipos != 0)
 				led_display_int(qeipos);
-//			uart_wait_dma(1);
+			if (memcmp(mesg0, "BlinK", 5) == 0)
+				led_blink(10, 3);
+			uart_wait_dma(1);
 		}
 		if (uart_op(&port1)) {
 			len = strlen(mesg1);
 			memcpy(mesg1+len-1, "--Echoed!", 9);
 			mesg1[len+8] = 0x0d;
-			uart_write(0, mesg1, len+9, 1);
+			uart_write(0, mesg1, len+9, 0);
 			port1.buf = mesg1;
 			port1.rem = sizeof(mesg1) - 1;
 			qeipos = str2num_dec(mesg1, len - 1);
 			if (qeipos != 0)
 				led_display_int(qeipos);
-//			uart_wait_dma(0);
+			if (memcmp(mesg1, "BlinK", 5) == 0)
+				led_blink(10, 3);
+			uart_wait_dma(0);
 		}
 	}
 

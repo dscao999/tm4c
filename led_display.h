@@ -3,5 +3,6 @@
 
 int led_display_init(int numdisp, int ppos);
 int led_display_int(int num);
+void led_blink(int csec, int n);
 
 #endif /* LED_DISPLAY_DSCAO__ */
