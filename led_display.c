@@ -80,16 +80,16 @@ int led_display_init(int numdisp, int popos)
 	cmd[pos++] = led_cmd(DECODE_REG, 0);
 	for (i = 0; i < leddat.maxled; i++)
 		cmd[pos++] = led_cmd(i+1, 0);
-	tm4c_ssi_write_sync(0, cmd, pos);
+	tm4c_ssi_write(0, cmd, pos, 1);
 
 	pos = 0;
 	cmd[pos++] = led_cmd(TEST_REG, 1);
-	tm4c_ssi_write_sync(0, cmd, pos);
+	tm4c_ssi_write(0, cmd, pos, 1);
 	tm4c_delay(10);
 	pos = 0;
 	cmd[pos++] = led_cmd(TEST_REG, 0);
 	cmd[pos++] = led_cmd(SHUT_REG, 1);
-	tm4c_ssi_write_sync(0, cmd, pos);
+	tm4c_ssi_write(0, cmd, pos, 1);
 	tm4c_ledlit(RED, 10);
 
 	leddat.curnum = 0;
