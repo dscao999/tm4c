@@ -24,10 +24,11 @@
 
 #include "miscutils.h"
 #include "tm4c_miscs.h"
-#include "tm4c_dma.h"
-#include "tm4c_uart.h"
-#include "tm4c_qei.h"
 #include "tm4c_gpio.h"
+#include "tm4c_uart.h"
+#include "tm4c_dma.h"
+#include "tm4c_qei.h"
+#include "tm4c_ssi.h"
 #include "led_display.h"
 
 //*****************************************************************************
@@ -59,79 +60,99 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //*****************************************************************************
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
+static char mesg0[80], mesg1[80];
+
+struct uart_param {
+	uint16_t port, rem;
+	const char *mesg;
+	char *buf;
+};
+
+static int uart_op(struct uart_param *p)
+{
+	int count, rlen, echo;
+
+	echo = 0;
+	count = uart_read(p->port, p->buf, p->rem, 0);
+	for (rlen = 0; rlen < count; rlen++)
+		if (*(p->buf+rlen) == 0)
+			*(p->buf+rlen) = '\\';
+	if (count && (*(p->buf+count-1) == 0x0d || *(p->buf+count-1) == 0x0a)) {
+		*(p->buf+count) = 0;
+		rlen = strlen(p->mesg);
+		if (rlen > 5 && memcmp(p->mesg, RESET, 5) == 0)
+			tm4c_reset();
+		else
+			echo = 1;
+	}
+	p->buf += count;
+	p->rem -= count;
+	return echo;
+}
+
+static struct uart_param port0, port1;
 int main(void)
 {
-	char mesg[96], *buf, mesg1[12];
-	uint32_t ticks;
-	int16_t tleap, qeipos, prev_qeipos;
-	int8_t count, len, rlen;
+	int qeipos, len;
+	uint16_t *ledat;
 
 	tm4c_setup();
 	tm4c_dma_enable();
 	tm4c_gpio_setup(GPIOA);
 	tm4c_gpio_setup(GPIOB);
 	tm4c_gpio_setup(GPIOC);
-	tm4c_gpio_setup(GPIOD);
-	tm4c_qei_setup(0, 0, 999, 0);
+
+	port0.mesg = mesg0;
+	port0.buf = mesg0;
+	port0.port = 0;
+	port0.rem = sizeof(mesg0) - 1;
+	port1.mesg = mesg1;
+	port1.buf = mesg1;
+	port1.port = 1;
+	port1.rem = sizeof(mesg1) - 1;
+	tm4c_qei_setup(1, 23, 30000, -30000);
+	len = led_display_init(6, 2);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello), 1);
 	uart_open(1);
-	tm4c_ledlit(GREEN, 10);
+	uart_write(1, hello, strlen(hello), 1);
 
-	tleap = csec2tick(20);
-	tm4c_qei_velconf(0, HZ / 20);
-	buf = mesg;
-	len = sizeof(mesg)-1;
-	count = 0;
-	ticks = sys_ticks;
-	prev_qeipos = 0;
-	tm4c_delay(10);
-	led_display_init();
+	ledat = (uint16_t *)mesg0;
+	len = tm4c_ssi_read(0, ledat, len);
+	len = bytes2str_hex((const uint8_t *)ledat, len*2, mesg1);
+	mesg1[len] = 0x0d;
+	uart_write(0, mesg1, len+1, 1);
+	uart_write(1, mesg1, len+1, 1);
+
 	while(1)
 	{
-		count = uart_read(0, buf, len, 0);
-		for (rlen = 0; rlen < count; rlen++)
-			if (*(buf+rlen) == 0)
-				*(buf+rlen) = '\\';
-		if (count && (*(buf+count-1) == 0x0d || *(buf+count-1) == 0x0a)) {
-			*(buf+count) = 0;
-			rlen = strlen(mesg);
-			if (rlen > 5 && memcmp(mesg, RESET, 5) == 0)
-				tm4c_reset();
-			else
-				uart_write(0, mesg, rlen, 1);
-			buf = mesg;
-			len = sizeof(mesg)-1;
-			count = 0;
-		}
-		if (sys_ticks - ticks >= tleap) {
-			qeipos = tm4c_qei_getpos(0);
-			if (qeipos != prev_qeipos) {
-				if (!tm4c_qei_velproc(0))
-					tm4c_qei_velstart(0);
-				else {
-					rlen = num2str_hex(tm4c_qei_velget(0), mesg1);
-					mesg1[rlen] = '\n';
-					uart_write(0, mesg1, rlen+1, 1);
-				}
+		if (uart_op(&port0)) {
+			len = strlen(mesg0);
+			memcpy(mesg0+len-1, "--Echoed!", 9);
+			mesg0[len+8] = 0x0d;
+			uart_write(1, mesg0, len+9, 1);
+			port0.buf = mesg0;
+			port0.rem = sizeof(mesg0) - 1;
+			qeipos = str2num_dec(mesg0, len - 1);
+			if (qeipos != 0)
 				led_display_int(qeipos);
-				prev_qeipos = qeipos;
-			} else
-				tm4c_qei_velstop(0);
-			led_display_int(qeipos);
-			ticks = sys_ticks;
+//			uart_wait_dma(1);
 		}
-		buf += count;
-		len -= count;
-		if (tm4c_gpio_intpin(GPIOD, GPIO_PIN_3))
-			uart_write(0, "Button Pressed!\n", 16, 1);
-		if (len <= 0) {
-			buf = mesg;
-			len = sizeof(mesg)-1;
-			count = 0;
+		if (uart_op(&port1)) {
+			len = strlen(mesg1);
+			memcpy(mesg1+len-1, "--Echoed!", 9);
+			mesg1[len+8] = 0x0d;
+			uart_write(0, mesg1, len+9, 1);
+			port1.buf = mesg1;
+			port1.rem = sizeof(mesg1) - 1;
+			qeipos = str2num_dec(mesg1, len - 1);
+			if (qeipos != 0)
+				led_display_int(qeipos);
+//			uart_wait_dma(0);
 		}
 	}
 
 	uart_close(0);
+	uart_close(1);
 	tm4c_reset();
 }

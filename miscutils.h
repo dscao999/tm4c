@@ -40,6 +40,7 @@ static inline int str2num_dec(const char *digits, int len)
 	sign = *digit;
 	if (sign == '-' || sign == '+') {
 		digit++;
+		len--;
 		if (sign == '-')
 			neg = -1;
 	}

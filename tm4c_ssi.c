@@ -78,7 +78,7 @@ void tm4c_ssi_setup(int port)
 	memset(ssi->buf, 0xed, sizeof(ssi->buf));
 }
 
-static void tm4c_ssi_write_sync(struct ssi_port *ssi, const uint16_t *buf, int len)
+static void ssi_write_sync(struct ssi_port *ssi, const uint16_t *buf, int len)
 {
 	const uint16_t *ubuf;
 	int i;
@@ -90,6 +90,12 @@ static void tm4c_ssi_write_sync(struct ssi_port *ssi, const uint16_t *buf, int l
 	}
 }
 
+void tm4c_ssi_write_sync(int port, const uint16_t *buf, int len)
+{
+	struct ssi_port *ssi = ssims + port;
+	ssi_write_sync(ssi, buf, len);
+}
+
 void tm4c_ssi_write(int port, const uint16_t *buf, int len, int wait)
 {
 	int dmalen;
@@ -98,7 +104,7 @@ void tm4c_ssi_write(int port, const uint16_t *buf, int len, int wait)
 	while (ssi->txdma)
 		tm4c_waitint();
 	if (buf < (uint16_t *)MEMADDR) {
-		tm4c_ssi_write_sync(ssi, buf, len);
+		ssi_write_sync(ssi, buf, len);
 		return;
 	}
 

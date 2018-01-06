@@ -32,6 +32,7 @@ void tm4c_ssi_setup(int port);
 void ssi0_isr(void);
 
 void tm4c_ssi_write(int port, const uint16_t *buf, int len, int wait);
+void tm4c_ssi_write_sync(int port, const uint16_t *buf, int len);
 void tm4c_ssi_waitdma(int port);
 int tm4c_ssi_read(int port, uint16_t *buf, int len);
 
