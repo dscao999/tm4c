@@ -7,7 +7,7 @@
 
 static const unsigned char digits[]={0x7e,0x30,0x6d,0x79,0x33,0x5b,0x5f,0x70,0x7f,0x7b};
 static struct leddisp {
-	uint16_t curnum;
+	uint32_t curnum;
 	uint8_t maxled;
 	uint8_t numled;
 	uint8_t popos;
@@ -51,11 +51,10 @@ static int led_display(void)
 		v /= 10;
 		cmd[cpos++] = led_cmd(i+1, digits[rem]);
 	}
-	if (neg < 0 && i < leddat.maxled)
+	if (neg == -1 && i < leddat.maxled)
 		cmd[cpos++] = led_cmd(i+1, 1);
-	for (i++; i < leddat.numled; i++)
+	for (; i < leddat.numled; i++)
 		cmd[cpos++] = led_cmd(i+1, 0);
-
 	tm4c_ssi_write(0, cmd, cpos, 1);
 	return cpos;
 }
