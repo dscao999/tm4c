@@ -153,11 +153,14 @@ static inline int num2str_hex(uint32_t v, char *buf)
 	return 8;
 }
 
-static inline int num2str_dec(const int v, char *buf)
+static inline int num2str_dec(const int v, char *buf, int len)
 {
 	int neg, rlen, i;
 	uint32_t tv;
 	char *cbuf, cctmp;
+
+	if (len <= 0)
+		return 0;
 
 	neg = 0;
 	if (v < 0) {
@@ -166,14 +169,16 @@ static inline int num2str_dec(const int v, char *buf)
 	} else
 		tv = v;
 
+	i = 0;
 	cbuf = buf;
-	while (tv > 0) {
+	while (tv > 0 && i < len) {
 		*cbuf++ = '0' + tv % 10;
 		tv /= 10;
+		i++;
 	}
 	if (v == 0)
 		*cbuf++ = '0';
-	if (neg)
+	if (neg && i < len)
 		*cbuf++ = '-';
 	rlen = cbuf - buf;
 	for (i = 0; i < rlen/2; i++) {
@@ -181,7 +186,6 @@ static inline int num2str_dec(const int v, char *buf)
 		buf[i] = buf[rlen-i-1];
 		buf[rlen-i-1] = cctmp;
 	}
-
 	return rlen;
 }
 
