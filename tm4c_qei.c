@@ -23,17 +23,16 @@ static struct qei_port qeims[] = {
 
 static void qei_config(uint32_t base, int intr,  uint32_t pos)
 {
-	uint32_t qeimode, qeictl;
+	uint32_t qeimode;
 
-	qeimode = QEI_CONFIG_CAPTURE_A|QEI_CONFIG_NO_RESET|QEI_CONFIG_QUADRATURE;
+	qeimode = QEI_CONFIG_CAPTURE_A|QEI_CONFIG_NO_RESET|QEI_CONFIG_QUADRATURE|QEI_CONFIG_NO_SWAP;
 	ROM_QEIConfigure(base, qeimode, 0xffffffffu);
-	qeictl = HWREG(base+QEI_O_CTL) & ~QEI_CTL_FILTCNT_M;
-	HWREG(base+QEI_O_CTL) = qeictl|QEI_FILTCNT_12|QEI_CTL_FILTEN;
-	HWREG(base+QEI_O_INTEN) |= (QEI_INTERROR|QEI_INTINDEX);
+//	ROM_QEIFilterConfigure(base, QEI_FILTCNT_17);
+	HWREG(base+QEI_O_CTL) = ((HWREG(base+QEI_O_CTL) & ~(QEI_CTL_FILTCNT_M))|QEI_FILTCNT_17);
+	ROM_QEIIntEnable(base, QEI_INTERROR);
 	ROM_IntPrioritySet(intr, 0x80);
-	HWREG(base+QEI_O_POS) = pos;
-	HWREG(base+QEI_O_CTL) |= QEI_CTL_ENABLE;
 	ROM_IntEnable(intr);
+	ROM_QEIEnable(base);
 }
 
 void tm4c_qei_setup(int port, uint32_t pos, int maxpos, int minpos)
@@ -84,8 +83,6 @@ static void qei_isr(struct qei_port *qei)
 		HWREG(qei->base+QEI_O_ISC) = isc;
 	if (isc & QEI_INTEN_ERROR)
 		qei->err++;
-	if (isc & QEI_INTEN_INDEX)
-		qei->revos++;
 	isc = HWREG(qei->base+QEI_O_ISC);
 }
 

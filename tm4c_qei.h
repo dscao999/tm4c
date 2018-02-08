@@ -9,7 +9,6 @@
 
 struct qei_port {
 	uint32_t base;
-	uint16_t revos;
 	uint16_t err;
 	int16_t maxpos;
 	int16_t minpos;

@@ -95,6 +95,7 @@ int main(void)
 {
 	int qeipos, len;
 	uint16_t *ledat;
+	char qeipos_str[16];
 
 	tm4c_setup();
 	tm4c_dma_enable();
@@ -110,7 +111,7 @@ int main(void)
 	port1.buf = mesg1;
 	port1.port = 1;
 	port1.rem = sizeof(mesg1) - 1;
-	tm4c_qei_setup(1, 23, 30000, -30000);
+	tm4c_qei_setup(0, 23, 30000, -30000);
 	len = led_display_init(6, 2);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello), 1);
@@ -124,9 +125,9 @@ int main(void)
 	uart_write(0, mesg1, len+1, 1);
 	uart_write(1, mesg1, len+1, 1);
 
-	while(1)
-	{
+	while(1) {
 		if (uart_op(&port0)) {
+			uart_wait_dma(0);
 			len = strlen(mesg0);
 			memcpy(mesg0+len-1, "--Echoed!", 9);
 			mesg0[len+8] = 0x0d;
@@ -136,6 +137,11 @@ int main(void)
 			qeipos = str2num_dec(mesg0, len - 1);
 			if (qeipos != 0)
 				led_display_int(qeipos);
+			qeipos = tm4c_qei_getpos(0);
+			len = num2str_dec(qeipos, qeipos_str, 14);
+			qeipos_str[len] = 0x0d;
+			qeipos_str[len+1] = 0;
+			uart_write(0, qeipos_str, len+1, 0);
 			if (memcmp(mesg0, "BlinK", 5) == 0)
 				led_blink(10, 3);
 			uart_wait_dma(1);
