@@ -94,6 +94,7 @@ void qei0_isr(void)
 	qei_isr(qeims);
 	qei0_isr_nums++;
 }
+
 void qei1_isr(void)
 {
 	qei_isr(qeims+1);
