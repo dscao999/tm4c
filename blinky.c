@@ -93,15 +93,17 @@ static int uart_op(struct uart_param *p)
 static struct uart_param port0, port1;
 int main(void)
 {
-	int qeipos, len;
+	int qeipos0, qeipos1, len, len0;
 	uint16_t *ledat;
 	char qeipos_str[16];
+	uint32_t tmark;
 
 	tm4c_setup();
 	tm4c_dma_enable();
 	tm4c_gpio_setup(GPIOA);
 	tm4c_gpio_setup(GPIOB);
 	tm4c_gpio_setup(GPIOC);
+	tm4c_gpio_setup(GPIOD);
 
 	port0.mesg = mesg0;
 	port0.buf = mesg0;
@@ -111,7 +113,7 @@ int main(void)
 	port1.buf = mesg1;
 	port1.port = 1;
 	port1.rem = sizeof(mesg1) - 1;
-	tm4c_qei_setup(0, 23, 30000, -30000);
+	tm4c_qei_setup(0, 0, 30000, -30000);
 	len = led_display_init(6, 2);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello), 1);
@@ -125,40 +127,47 @@ int main(void)
 	uart_write(0, mesg1, len+1, 1);
 	uart_write(1, mesg1, len+1, 1);
 
+	qeipos0 = tm4c_qei_getpos(0);
+	led_display_int(qeipos0);
+	tmark = tm4c_tick_after(2);
 	while(1) {
+		if (time_after(tmark)) {
+			qeipos1 = tm4c_qei_getpos(0);
+			if (qeipos1 != qeipos0) {
+				led_display_int(qeipos1);
+				qeipos0 = qeipos1;
+			}
+			tmark = tm4c_tick_after(2);
+		}
 		if (uart_op(&port0)) {
-			uart_wait_dma(0);
 			len = strlen(mesg0);
 			memcpy(mesg0+len-1, "--Echoed!", 9);
 			mesg0[len+8] = 0x0d;
 			uart_write(1, mesg0, len+9, 0);
+			len0 = num2str_dec(qeipos0, qeipos_str, 14);
+			qeipos_str[len0] = 0x0d;
+			uart_write(0, qeipos_str, len0+1, 0);
 			port0.buf = mesg0;
 			port0.rem = sizeof(mesg0) - 1;
-			qeipos = str2num_dec(mesg0, len - 1);
-			if (qeipos != 0)
-				led_display_int(qeipos);
-			qeipos = tm4c_qei_getpos(0);
-			len = num2str_dec(qeipos, qeipos_str, 14);
-			qeipos_str[len] = 0x0d;
-			qeipos_str[len+1] = 0;
-			uart_write(0, qeipos_str, len+1, 0);
 			if (memcmp(mesg0, "BlinK", 5) == 0)
 				led_blink(10, 3);
 			uart_wait_dma(1);
+			uart_wait_dma(0);
 		}
 		if (uart_op(&port1)) {
 			len = strlen(mesg1);
 			memcpy(mesg1+len-1, "--Echoed!", 9);
 			mesg1[len+8] = 0x0d;
 			uart_write(0, mesg1, len+9, 0);
+			len0 = num2str_dec(qeipos0, qeipos_str, 14);
+			qeipos_str[len0] = 0x0d;
+			uart_write(1, qeipos_str, len0+1, 0);
 			port1.buf = mesg1;
 			port1.rem = sizeof(mesg1) - 1;
-			qeipos = str2num_dec(mesg1, len - 1);
-			if (qeipos != 0)
-				led_display_int(qeipos);
 			if (memcmp(mesg1, "BlinK", 5) == 0)
 				led_blink(10, 3);
 			uart_wait_dma(0);
+			uart_wait_dma(1);
 		}
 	}
 
