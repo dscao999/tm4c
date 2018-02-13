@@ -1,8 +1,9 @@
-#ifndef LED_DISPLAY_DSCAO__
-#define LED_DISPLAY_DSCAO__
+#ifndef SSI_DISPLAY_DSCAO__
+#define SSI_DISPLAY_DSCAO__
 
-int led_display_init(int numdisp, int ppos);
-int led_display_int(int num);
-void led_blink(int csec, int n, int tmpv);
+int ssi_display_init(int numdisp, int ppos);
+int ssi_display_int(int num);
+void ssi_display_shut(void);
+void ssi_display_show(void);
 
-#endif /* LED_DISPLAY_DSCAO__ */
+#endif /* SSI_DISPLAY_DSCAO__ */

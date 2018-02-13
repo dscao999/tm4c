@@ -29,7 +29,7 @@
 #include "tm4c_dma.h"
 #include "tm4c_qei.h"
 #include "tm4c_ssi.h"
-#include "led_display.h"
+#include "ssi_display.h"
 
 //*****************************************************************************
 //
@@ -61,6 +61,23 @@ __error__(char *pcFilename, uint32_t ui32Line)
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
 static char mesg0[80], mesg1[80];
+struct timer_task {
+	uint32_t tick;
+	int csec;
+	void (*task)(struct timer_task *slot);
+	void *data;
+};
+#define MAX_WORKERS	4
+static struct timer_task workers[MAX_WORKERS];
+
+static inline struct timer_task *task_slot(void)
+{
+	int i;
+	for (i = 0; i < MAX_WORKERS; i++)
+		if (workers[i].task == 0)
+			return workers+i;
+	return 0;
+}
 
 struct uart_param {
 	uint16_t port, rem;
@@ -90,14 +107,60 @@ static int uart_op(struct uart_param *p)
 	return echo;
 }
 
+static void display_position(struct timer_task *slot)
+{
+	int *pos = slot->data, qeipos;
+
+	qeipos = tm4c_qei_getpos(0);
+	if (qeipos != *pos) {
+		ssi_display_int(qeipos);
+		*pos = qeipos;
+	}
+	if (slot->csec != 0)
+		slot->tick = tm4c_tick_after(slot->csec);
+	else
+		slot->task = 0;
+}
+
+struct dispblink {
+	uint16_t altnum;
+	uint16_t count;
+};
+static struct dispblink dblink = { .count = 0, .altnum = 0 };
+
+static void display_blink(struct timer_task *slot)
+{
+	struct dispblink *bl = slot->data;
+
+	if (bl->count == 0) {
+		slot->task = 0;
+		return;
+	}
+	if ((bl->count % 2) == 0)
+		ssi_display_shut();
+	else
+		ssi_display_show();
+	bl->count--;
+	if (bl->count == 0)
+		slot->task = 0;
+
+	if (slot->csec != 0)
+		slot->tick = tm4c_tick_after(slot->csec);
+	else
+		slot->task = 0;
+}
+
 static struct uart_param port0, port1;
 int main(void)
 {
-	int qeipos0, qeipos1, len, len0;
+	int qeipos, len, len0, i;
 	char qeipos_str[16];
-	uint32_t tmark;
+	struct timer_task *slot;
 
 	tm4c_setup();
+	for (i = 0; i < MAX_WORKERS; i++)
+		workers[i].task = 0;
+
 	tm4c_dma_enable();
 	tm4c_gpio_setup(GPIOA);
 	tm4c_gpio_setup(GPIOB);
@@ -113,7 +176,7 @@ int main(void)
 	port1.port = 1;
 	port1.rem = sizeof(mesg1) - 1;
 	tm4c_qei_setup(0, 0, 999, 0);
-	len = led_display_init(3, 2);
+	len = ssi_display_init(3, 2);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello), 1);
 	uart_open(1);
@@ -121,17 +184,18 @@ int main(void)
 	tm4c_ledlit(RED, 10);
 	tm4c_ledlit(GREEN, 10);
 
-	qeipos0 = tm4c_qei_getpos(0);
-	led_display_int(qeipos0);
-	tmark = tm4c_tick_after(2);
+	qeipos = tm4c_qei_getpos(0);
+	ssi_display_int(qeipos);
+	workers[0].task = display_position;
+	workers[0].data = &qeipos;
+	workers[0].csec = 2;
+	workers[0].tick = tm4c_tick_after(workers[0].csec);
 	while(1) {
-		if (time_after(tmark)) {
-			qeipos1 = tm4c_qei_getpos(0);
-			if (qeipos1 != qeipos0) {
-				led_display_int(qeipos1);
-				qeipos0 = qeipos1;
-			}
-			tmark = tm4c_tick_after(2);
+		for (i = 0; i < MAX_WORKERS; i++) {
+			if (workers[i].task == 0)
+				continue;
+			if (time_after(workers[i].tick))
+				workers[i].task(workers+i);
 		}
 		if (uart_op(&port0)) {
 			len = strlen(mesg0);
@@ -143,8 +207,17 @@ int main(void)
 			uart_write(0, qeipos_str, len0+1, 0);
 			port0.buf = mesg0;
 			port0.rem = sizeof(mesg0) - 1;
-			if (memcmp(mesg0, "BlinK", 5) == 0)
-				led_blink(5, 5, 97);
+			if (memcmp(mesg0, "BlinK", 5) == 0 && dblink.count == 0) {
+				slot = task_slot();
+				if (slot) {
+					dblink.altnum = 101;
+					dblink.count = 6;
+					slot->task = display_blink;
+					slot->csec = 10;
+					slot->data = &dblink;
+					slot->tick = tm4c_tick_after(0);
+				}
+			}
 			uart_wait_dma(1);
 			uart_wait_dma(0);
 		}
@@ -158,8 +231,17 @@ int main(void)
 			uart_write(1, qeipos_str, len0+1, 0);
 			port1.buf = mesg1;
 			port1.rem = sizeof(mesg1) - 1;
-			if (memcmp(mesg1, "BlinK", 5) == 0)
-				led_blink(5, 4, 98);
+			if (memcmp(mesg1, "BlinK", 5) == 0 && dblink.count == 0) {
+				slot = task_slot();
+				if (slot) {
+					dblink.altnum = 102;
+					dblink.count = 6;
+					slot->task = display_blink;
+					slot->csec = 10;
+					slot->data = &dblink;
+					slot->tick = tm4c_tick_after(0);
+				}
+			}
 			uart_wait_dma(0);
 			uart_wait_dma(1);
 		}

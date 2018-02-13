@@ -23,8 +23,8 @@ void tm4c_setup(void)
 
 void tm4c_ledlit(enum led_type led, int ticks)
 {
-	uint32_t ledpin;
-	int intensity;
+	uint8_t ledpin;
+	uint8_t intensity;
 
 	intensity = 10;
 	switch(led) {

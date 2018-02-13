@@ -1,9 +1,12 @@
+/*
+ *  MAX7219/7221 SSI interface display driver
+ */
 #include <stdint.h>
 #include <stdbool.h>
 #include "miscutils.h"
 #include "tm4c_ssi.h"
 #include "tm4c_miscs.h"
-#include "led_display.h"
+#include "ssi_display.h"
 
 static const unsigned char digits[]={0x7e,0x30,0x6d,0x79,0x33,0x5b,0x5f,0x70,0x7f,0x7b};
 static struct leddisp {
@@ -24,6 +27,11 @@ static inline uint16_t led_cmd(uint8_t addr, uint8_t v)
 	return (addr << 8)|v;
 }
 
+static inline uint8_t posidx(int i)
+{
+	return leddat.numled - i;
+}
+
 static int led_display(void)
 {
 	int cpos, neg, i;
@@ -41,25 +49,25 @@ static int led_display(void)
 	for (i = 0; i < leddat.popos; i++) {
 		rem = v % 10;
 		v /= 10;
-		cmd[cpos++] = led_cmd(leddat.numled - i, digits[rem]);
+		cmd[cpos++] = led_cmd(posidx(i), digits[rem]);
 	}
 	rem = v % 10;
 	v /= 10;
-	cmd[cpos++] = led_cmd(leddat.numled - i, digits[rem]|0x80);
+	cmd[cpos++] = led_cmd(posidx(i), digits[rem]|0x80);
 	for (i++; i < leddat.numled && v != 0; i++) {
 		rem = v % 10;
 		v /= 10;
-		cmd[cpos++] = led_cmd(leddat.numled - i, digits[rem]);
+		cmd[cpos++] = led_cmd(posidx(i), digits[rem]);
 	}
 	if (neg  && i < leddat.maxled)
-		cmd[cpos++] = led_cmd(leddat.numled - i++, 1);
+		cmd[cpos++] = led_cmd(posidx(i++), 1);
 	for (; i < leddat.numled; i++)
-		cmd[cpos++] = led_cmd(leddat.numled - i, 0);
+		cmd[cpos++] = led_cmd(posidx(i), 0);
 	tm4c_ssi_write(0, cmd, cpos, 1);
 	return cpos;
 }
 
-int led_display_init(int numdisp, int popos)
+int ssi_display_init(int numdisp, int popos)
 {
 	uint16_t cmd[16];
 	int pos, i;
@@ -95,16 +103,35 @@ int led_display_init(int numdisp, int popos)
 	return pos;
 }
 
-int led_display_int(int num)
+int ssi_display_int(int num)
 {
 	leddat.curnum = num;
 	return led_display();
 }
 
-void led_blink(int csec, int n, int tmpv)
+void ssi_display_shut(void)
 {
-	uint16_t cmd[10];
-	int pos, i, oldv, step;
+	uint16_t cmd[4];
+	int pos = 0;
+
+	cmd[pos++] = led_cmd(SHUT_REG, 0);
+	tm4c_ssi_write_sync(0, cmd, pos);
+
+}
+
+void ssi_display_show(void)
+{
+	uint16_t cmd[4];
+	int pos = 0;
+
+	cmd[pos++] = led_cmd(SHUT_REG, 1);
+	tm4c_ssi_write_sync(0, cmd, pos);
+
+}
+
+void ssi_display_blink(int csec, int n, int tmpv)
+{
+	int i, oldv, step;
 
 	step = 0;
 	oldv = leddat.curnum;
@@ -112,18 +139,14 @@ void led_blink(int csec, int n, int tmpv)
 		tmpv = oldv;
 	i = 0;
 	do {
-		pos = 0;
-		cmd[pos++] = led_cmd(SHUT_REG, 0);
-		tm4c_ssi_write_sync(0, cmd, pos);
+		ssi_display_shut();
 		tm4c_delay(csec);
 		if (step++ % 2 == 0) {
 			leddat.curnum = tmpv;
 		} else
 			leddat.curnum = oldv;
 		led_display();
-		pos = 0;
-		cmd[pos++] = led_cmd(SHUT_REG, 1);
-		tm4c_ssi_write_sync(0, cmd, pos);
+		ssi_display_show();
 		tm4c_delay(csec);
 	} while (++i < n);
 	if (leddat.curnum != oldv) {

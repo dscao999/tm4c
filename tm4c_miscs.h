@@ -23,7 +23,7 @@ extern uint32_t cycles;
 	((int32_t)sys_ticks - (int32_t)tmark < 0)
 
 #define time_after(tmark) \
-	((int32_t)sys_ticks - (int32_t)tmark > 0)
+	((int32_t)sys_ticks - (int32_t)tmark >= 0)
 
 static inline int csec2tick(int csecs)
 {
