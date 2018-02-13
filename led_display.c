@@ -11,7 +11,7 @@ static struct leddisp {
 	uint8_t maxled;
 	uint8_t numled;
 	uint8_t popos;
-} leddat = { .maxled = 8, .numled = 6, .popos = 2 };
+} leddat = { .maxled = 3, .numled = 3, .popos = 2 };
 
 #define DECODE_REG	0x09
 #define INTEN_REG	0x0a
@@ -41,20 +41,20 @@ static int led_display(void)
 	for (i = 0; i < leddat.popos; i++) {
 		rem = v % 10;
 		v /= 10;
-		cmd[cpos++] = led_cmd(i+1, digits[rem]);
+		cmd[cpos++] = led_cmd(leddat.numled - i, digits[rem]);
 	}
 	rem = v % 10;
 	v /= 10;
-	cmd[cpos++] = led_cmd(i+1, digits[rem]|0x80);
+	cmd[cpos++] = led_cmd(leddat.numled - i, digits[rem]|0x80);
 	for (i++; i < leddat.numled && v != 0; i++) {
 		rem = v % 10;
 		v /= 10;
-		cmd[cpos++] = led_cmd(i+1, digits[rem]);
+		cmd[cpos++] = led_cmd(leddat.numled - i, digits[rem]);
 	}
 	if (neg  && i < leddat.maxled)
-		cmd[cpos++] = led_cmd(++i, 1);
+		cmd[cpos++] = led_cmd(leddat.numled - i++, 1);
 	for (; i < leddat.numled; i++)
-		cmd[cpos++] = led_cmd(i+1, 0);
+		cmd[cpos++] = led_cmd(leddat.numled - i, 0);
 	tm4c_ssi_write(0, cmd, cpos, 1);
 	return cpos;
 }
@@ -65,7 +65,6 @@ int led_display_init(int numdisp, int popos)
 	int pos, i;
 
 	tm4c_ssi_setup(0);
-	tm4c_ledlit(GREEN, 10);
 	leddat.numled = numdisp;
 	if (leddat.numled > 6)
 		leddat.numled = 6;
@@ -90,7 +89,6 @@ int led_display_init(int numdisp, int popos)
 	cmd[pos++] = led_cmd(TEST_REG, 0);
 	cmd[pos++] = led_cmd(SHUT_REG, 1);
 	tm4c_ssi_write_sync(0, cmd, pos);
-	tm4c_ledlit(RED, 10);
 
 	leddat.curnum = 0;
 	pos = led_display();
@@ -103,20 +101,33 @@ int led_display_int(int num)
 	return led_display();
 }
 
-void led_blink(int csec, int n)
+void led_blink(int csec, int n, int tmpv)
 {
 	uint16_t cmd[10];
-	int pos, i;
+	int pos, i, oldv, step;
 
+	step = 0;
+	oldv = leddat.curnum;
+	if (tmpv == 0)
+		tmpv = oldv;
 	i = 0;
 	do {
 		pos = 0;
 		cmd[pos++] = led_cmd(SHUT_REG, 0);
 		tm4c_ssi_write_sync(0, cmd, pos);
 		tm4c_delay(csec);
+		if (step++ % 2 == 0) {
+			leddat.curnum = tmpv;
+		} else
+			leddat.curnum = oldv;
+		led_display();
 		pos = 0;
 		cmd[pos++] = led_cmd(SHUT_REG, 1);
 		tm4c_ssi_write_sync(0, cmd, pos);
 		tm4c_delay(csec);
 	} while (++i < n);
+	if (leddat.curnum != oldv) {
+		leddat.curnum = oldv;
+		led_display();
+	}
 }

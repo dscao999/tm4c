@@ -94,7 +94,6 @@ static struct uart_param port0, port1;
 int main(void)
 {
 	int qeipos0, qeipos1, len, len0;
-	uint16_t *ledat;
 	char qeipos_str[16];
 	uint32_t tmark;
 
@@ -113,19 +112,14 @@ int main(void)
 	port1.buf = mesg1;
 	port1.port = 1;
 	port1.rem = sizeof(mesg1) - 1;
-	tm4c_qei_setup(0, 0, 30000, -30000);
-	len = led_display_init(6, 2);
+	tm4c_qei_setup(0, 0, 999, 0);
+	len = led_display_init(3, 2);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello), 1);
 	uart_open(1);
 	uart_write(1, hello, strlen(hello), 1);
-
-	ledat = (uint16_t *)mesg0;
-	len = tm4c_ssi_read(0, ledat, len);
-	len = bytes2str_hex((const uint8_t *)ledat, len*2, mesg1);
-	mesg1[len] = 0x0d;
-	uart_write(0, mesg1, len+1, 1);
-	uart_write(1, mesg1, len+1, 1);
+	tm4c_ledlit(RED, 10);
+	tm4c_ledlit(GREEN, 10);
 
 	qeipos0 = tm4c_qei_getpos(0);
 	led_display_int(qeipos0);
@@ -144,13 +138,13 @@ int main(void)
 			memcpy(mesg0+len-1, "--Echoed!", 9);
 			mesg0[len+8] = 0x0d;
 			uart_write(1, mesg0, len+9, 0);
-			len0 = num2str_dec(qeipos0, qeipos_str, 14);
+			len0 = num2str_dec(tm4c_qei_getpos(0), qeipos_str, 14);
 			qeipos_str[len0] = 0x0d;
 			uart_write(0, qeipos_str, len0+1, 0);
 			port0.buf = mesg0;
 			port0.rem = sizeof(mesg0) - 1;
 			if (memcmp(mesg0, "BlinK", 5) == 0)
-				led_blink(10, 3);
+				led_blink(5, 5, 97);
 			uart_wait_dma(1);
 			uart_wait_dma(0);
 		}
@@ -159,13 +153,13 @@ int main(void)
 			memcpy(mesg1+len-1, "--Echoed!", 9);
 			mesg1[len+8] = 0x0d;
 			uart_write(0, mesg1, len+9, 0);
-			len0 = num2str_dec(qeipos0, qeipos_str, 14);
+			len0 = num2str_dec(tm4c_qei_getpos(0), qeipos_str, 14);
 			qeipos_str[len0] = 0x0d;
 			uart_write(1, qeipos_str, len0+1, 0);
 			port1.buf = mesg1;
 			port1.rem = sizeof(mesg1) - 1;
 			if (memcmp(mesg1, "BlinK", 5) == 0)
-				led_blink(10, 3);
+				led_blink(5, 4, 98);
 			uart_wait_dma(0);
 			uart_wait_dma(1);
 		}
