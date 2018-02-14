@@ -32,7 +32,7 @@ static inline uint8_t posidx(int i)
 	return leddat.numled - i;
 }
 
-static int led_display(void)
+static void led_display(void)
 {
 	int cpos, neg, i;
 	uint16_t cmd[16];
@@ -64,10 +64,9 @@ static int led_display(void)
 	for (; i < leddat.numled; i++)
 		cmd[cpos++] = led_cmd(posidx(i), 0);
 	tm4c_ssi_write(0, cmd, cpos, 1);
-	return cpos;
 }
 
-int ssi_display_init(int numdisp, int popos)
+void ssi_display_init(int numdisp, int popos)
 {
 	uint16_t cmd[16];
 	int pos, i;
@@ -99,14 +98,13 @@ int ssi_display_init(int numdisp, int popos)
 	tm4c_ssi_write_sync(0, cmd, pos);
 
 	leddat.curnum = 0;
-	pos = led_display();
-	return pos;
+	led_display();
 }
 
-int ssi_display_int(int num)
+void ssi_display_int(int num)
 {
 	leddat.curnum = num;
-	return led_display();
+	led_display();
 }
 
 void ssi_display_shut(void)
@@ -127,6 +125,11 @@ void ssi_display_show(void)
 	cmd[pos++] = led_cmd(SHUT_REG, 1);
 	tm4c_ssi_write_sync(0, cmd, pos);
 
+}
+
+int ssi_display_get(void)
+{
+	return leddat.curnum;
 }
 
 void ssi_display_blink(int csec, int n, int tmpv)

@@ -52,7 +52,7 @@ LDSCRIPT = tm4c.ld
 # Where to find header files that do not live in the source directory.
 #
 
-.PHONY: all clean
+.PHONY: all clean clean_incl
 #
 # The default rule, which causes the driver library to be built.
 #
@@ -66,7 +66,8 @@ blinky: blinky.o tm4c_uart.o tm4c_startup.o tm4c_miscs.o tm4c_dma.o \
 #
 clean:
 	rm -rf blinky blinky.bin *.o
-
+clean_incl: clean
+	rm -f *.d
 #
 # Include the automatically generated dependency files.
 #

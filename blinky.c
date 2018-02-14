@@ -70,7 +70,7 @@ struct timer_task {
 #define MAX_WORKERS	4
 static struct timer_task workers[MAX_WORKERS];
 
-static inline struct timer_task *task_slot(void)
+static inline struct timer_task *task_slot_get(void)
 {
 	int i;
 	for (i = 0; i < MAX_WORKERS; i++)
@@ -123,10 +123,11 @@ static void display_position(struct timer_task *slot)
 }
 
 struct dispblink {
+	uint16_t oldnum;
 	uint16_t altnum;
 	uint16_t count;
 };
-static struct dispblink dblink = { .count = 0, .altnum = 0 };
+static struct dispblink dblink = { .count = 0, .altnum = 0, .oldnum = 0};
 
 static void display_blink(struct timer_task *slot)
 {
@@ -136,9 +137,13 @@ static void display_blink(struct timer_task *slot)
 		slot->task = 0;
 		return;
 	}
-	if ((bl->count % 2) == 0)
+	if ((bl->count % 2) == 0) {
 		ssi_display_shut();
-	else
+		if ((bl->count % 4) == 0)
+			ssi_display_int(bl->altnum);
+		if ((bl->count % 4) == 2)
+			ssi_display_int(bl->oldnum);
+	} else
 		ssi_display_show();
 	bl->count--;
 	if (bl->count == 0)
@@ -176,16 +181,15 @@ int main(void)
 	port1.port = 1;
 	port1.rem = sizeof(mesg1) - 1;
 	tm4c_qei_setup(0, 0, 999, 0);
-	len = ssi_display_init(3, 2);
+	ssi_display_init(3, 2);
 	uart_open(0);
 	uart_write(0, hello, strlen(hello), 1);
 	uart_open(1);
 	uart_write(1, hello, strlen(hello), 1);
-	tm4c_ledlit(RED, 10);
-	tm4c_ledlit(GREEN, 10);
 
 	qeipos = tm4c_qei_getpos(0);
 	ssi_display_int(qeipos);
+	tm4c_ledlit(GREEN, 10);
 	workers[0].task = display_position;
 	workers[0].data = &qeipos;
 	workers[0].csec = 2;
@@ -208,12 +212,13 @@ int main(void)
 			port0.buf = mesg0;
 			port0.rem = sizeof(mesg0) - 1;
 			if (memcmp(mesg0, "BlinK", 5) == 0 && dblink.count == 0) {
-				slot = task_slot();
+				slot = task_slot_get();
 				if (slot) {
 					dblink.altnum = 101;
-					dblink.count = 6;
+					dblink.oldnum = ssi_display_get();
+					dblink.count = 16;
 					slot->task = display_blink;
-					slot->csec = 10;
+					slot->csec = 5;
 					slot->data = &dblink;
 					slot->tick = tm4c_tick_after(0);
 				}
@@ -232,12 +237,13 @@ int main(void)
 			port1.buf = mesg1;
 			port1.rem = sizeof(mesg1) - 1;
 			if (memcmp(mesg1, "BlinK", 5) == 0 && dblink.count == 0) {
-				slot = task_slot();
+				slot = task_slot_get();
 				if (slot) {
 					dblink.altnum = 102;
-					dblink.count = 6;
+					dblink.oldnum = ssi_display_get();
+					dblink.count = 16;
 					slot->task = display_blink;
-					slot->csec = 10;
+					slot->csec = 5;
 					slot->data = &dblink;
 					slot->tick = tm4c_tick_after(0);
 				}
