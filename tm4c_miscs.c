@@ -17,8 +17,7 @@ void tm4c_setup(void)
 	ROM_IntMasterEnable();
 	ROM_SysTickIntEnable();
 	ROM_SysTickEnable();
-	tm4c_gpio_setup(GPIOF);
-	tm4c_ledlit(RED, 5);
+	tm4c_ledlit(RED, 2);
 }
 
 void tm4c_ledlit(enum led_type led, int ticks)

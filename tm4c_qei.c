@@ -114,6 +114,18 @@ int tm4c_qei_getpos(int port)
 	return pos;
 }
 
+void tm4c_qei_setpos(int port, int pos)
+{
+	struct qei_port *qei;
+
+	qei = qeims+port;
+	if (pos > qei->maxpos)
+		pos = qei->maxpos;
+	else if (pos < qei->minpos)
+		pos = qei->minpos;
+	HWREG(qei->base+QEI_O_POS) = pos;
+}
+
 void tm4c_qei_velconf(int port , uint32_t tintv)
 {
 	struct qei_port *qei = qeims + port;

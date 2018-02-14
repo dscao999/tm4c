@@ -20,6 +20,7 @@ void qei0_isr(void);
 void qei1_isr(void);
 
 int tm4c_qei_getpos(int port);
+void tm4c_qei_setpos(int port, int pos);
 void tm4c_qei_velconf(int port, uint32_t tintv);
 void tm4c_qei_velstart(int port);
 void tm4c_qei_velstop(int port);

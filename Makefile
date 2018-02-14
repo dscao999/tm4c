@@ -59,7 +59,8 @@ LDSCRIPT = tm4c.ld
 all: blinky
 
 blinky: blinky.o tm4c_uart.o tm4c_startup.o tm4c_miscs.o tm4c_dma.o \
-		tm4c_qei.o tm4c_gpio.o ssi_display.o tm4c_ssi.o
+		tm4c_qei.o tm4c_gpio.o ssi_display.o tm4c_ssi.o \
+		blinking.o qei_position.o timer_task.o
 	$(LD) $(LDFLAGS) $^ -o $@
 #
 # The rule to clean out all the build products.

@@ -30,6 +30,8 @@
 #include "tm4c_qei.h"
 #include "tm4c_ssi.h"
 #include "ssi_display.h"
+#include "uart_laser.h"
+#include "blinking.h"
 
 //*****************************************************************************
 //
@@ -61,23 +63,6 @@ __error__(char *pcFilename, uint32_t ui32Line)
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
 static char mesg0[80], mesg1[80];
-struct timer_task {
-	uint32_t tick;
-	int csec;
-	void (*task)(struct timer_task *slot);
-	void *data;
-};
-#define MAX_WORKERS	4
-static struct timer_task workers[MAX_WORKERS];
-
-static inline struct timer_task *task_slot_get(void)
-{
-	int i;
-	for (i = 0; i < MAX_WORKERS; i++)
-		if (workers[i].task == 0)
-			return workers+i;
-	return 0;
-}
 
 struct uart_param {
 	uint16_t port, rem;
@@ -107,70 +92,40 @@ static int uart_op(struct uart_param *p)
 	return echo;
 }
 
-static void display_position(struct timer_task *slot)
+static void start_motor(int start, int stop)
 {
-	int *pos = slot->data, qeipos;
-
-	qeipos = tm4c_qei_getpos(0);
-	if (qeipos != *pos) {
-		ssi_display_int(qeipos);
-		*pos = qeipos;
-	}
-	if (slot->csec != 0)
-		slot->tick = tm4c_tick_after(slot->csec);
-	else
-		slot->task = 0;
-}
-
-struct dispblink {
-	uint16_t oldnum;
-	uint16_t altnum;
-	uint16_t count;
-};
-static struct dispblink dblink = { .count = 0, .altnum = 0, .oldnum = 0};
-
-static void display_blink(struct timer_task *slot)
-{
-	struct dispblink *bl = slot->data;
-
-	if (bl->count == 0) {
-		slot->task = 0;
-		return;
-	}
-	if ((bl->count % 2) == 0) {
-		ssi_display_shut();
-		if ((bl->count % 4) == 0)
-			ssi_display_int(bl->altnum);
-		if ((bl->count % 4) == 2)
-			ssi_display_int(bl->oldnum);
-	} else
-		ssi_display_show();
-	bl->count--;
-	if (bl->count == 0)
-		slot->task = 0;
-
-	if (slot->csec != 0)
-		slot->tick = tm4c_tick_after(slot->csec);
-	else
-		slot->task = 0;
 }
 
 static struct uart_param port0, port1;
+
+static int check_key_press(void)
+{
+	return port0.rem < sizeof(mesg0 - 1) || port1.rem < sizeof(mesg1) - 1;
+}
+
+static struct qeishot *qs;
+static struct disp_blink *db;
+
 int main(void)
 {
-	int qeipos, len, len0, i;
+	int len, len0, motor_on = 0;
 	char qeipos_str[16];
-	struct timer_task *slot;
 
-	tm4c_setup();
-	for (i = 0; i < MAX_WORKERS; i++)
-		workers[i].task = 0;
-
-	tm4c_dma_enable();
 	tm4c_gpio_setup(GPIOA);
 	tm4c_gpio_setup(GPIOB);
 	tm4c_gpio_setup(GPIOC);
 	tm4c_gpio_setup(GPIOD);
+	tm4c_gpio_setup(GPIOF);
+	tm4c_setup();
+	task_init();
+	tm4c_dma_enable();
+	tm4c_qei_setup(0, 0, 999, 0);
+	ssi_display_init(3, 2);
+	uart_open(0);
+	uart_open(1);
+
+	qs = qeipos_setup(laser_distance());
+	db = blink_init(qs);
 
 	port0.mesg = mesg0;
 	port0.buf = mesg0;
@@ -180,27 +135,17 @@ int main(void)
 	port1.buf = mesg1;
 	port1.port = 1;
 	port1.rem = sizeof(mesg1) - 1;
-	tm4c_qei_setup(0, 0, 999, 0);
-	ssi_display_init(3, 2);
-	uart_open(0);
 	uart_write(0, hello, strlen(hello), 1);
-	uart_open(1);
 	uart_write(1, hello, strlen(hello), 1);
-
-	qeipos = tm4c_qei_getpos(0);
-	ssi_display_int(qeipos);
 	tm4c_ledlit(GREEN, 10);
-	workers[0].task = display_position;
-	workers[0].data = &qeipos;
-	workers[0].csec = 2;
-	workers[0].tick = tm4c_tick_after(workers[0].csec);
+
 	while(1) {
-		for (i = 0; i < MAX_WORKERS; i++) {
-			if (workers[i].task == 0)
-				continue;
-			if (time_after(workers[i].tick))
-				workers[i].task(workers+i);
+		if (qs->paused) {
+			blink_activate();
+			qs->paused = 0;
+			qs->varied = 0;
 		}
+		task_execute();
 		if (uart_op(&port0)) {
 			len = strlen(mesg0);
 			memcpy(mesg0+len-1, "--Echoed!", 9);
@@ -211,20 +156,6 @@ int main(void)
 			uart_write(0, qeipos_str, len0+1, 0);
 			port0.buf = mesg0;
 			port0.rem = sizeof(mesg0) - 1;
-			if (memcmp(mesg0, "BlinK", 5) == 0 && dblink.count == 0) {
-				slot = task_slot_get();
-				if (slot) {
-					dblink.altnum = 101;
-					dblink.oldnum = ssi_display_get();
-					dblink.count = 16;
-					slot->task = display_blink;
-					slot->csec = 5;
-					slot->data = &dblink;
-					slot->tick = tm4c_tick_after(0);
-				}
-			}
-			uart_wait_dma(1);
-			uart_wait_dma(0);
 		}
 		if (uart_op(&port1)) {
 			len = strlen(mesg1);
@@ -236,21 +167,16 @@ int main(void)
 			uart_write(1, qeipos_str, len0+1, 0);
 			port1.buf = mesg1;
 			port1.rem = sizeof(mesg1) - 1;
-			if (memcmp(mesg1, "BlinK", 5) == 0 && dblink.count == 0) {
-				slot = task_slot_get();
-				if (slot) {
-					dblink.altnum = 102;
-					dblink.oldnum = ssi_display_get();
-					dblink.count = 16;
-					slot->task = display_blink;
-					slot->csec = 5;
-					slot->data = &dblink;
-					slot->tick = tm4c_tick_after(0);
-				}
-			}
 			uart_wait_dma(0);
 			uart_wait_dma(1);
 		}
+		if (db->count && !motor_on && check_key_press()) {
+			motor_on = 1;
+			db->count += 600*4;
+			start_motor(laser_distance(), tm4c_qei_getpos(0));
+		}
+		uart_wait_dma(1);
+		uart_wait_dma(0);
 	}
 
 	uart_close(0);
