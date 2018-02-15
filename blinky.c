@@ -10,6 +10,8 @@
 // TI and/or its suppliers, and is protected under applicable copyright
 // laws. You may not combine this software with "viral" open-source
 // software in order to form a larger program.
+//
+// This is the program to control a lifter in garage.
 // 
 // THIS SOFTWARE IS PROVIDED "AS IS" AND WITH ALL FAULTS.
 // NO WARRANTIES, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT
@@ -34,12 +36,6 @@
 #include "blinking.h"
 
 //*****************************************************************************
-//
-//! \addtogroup example_list
-//! <h1>Blinky (blinky)</h1>
-//!
-//! A very simple example that blinks the on-board LED using direct register
-//! access.
 //
 //*****************************************************************************
 //*****************************************************************************

@@ -33,8 +33,8 @@ void qeipos_detect(struct timer_task *slot)
 	if (qeipos != qeishot.qeipos) {
 		ssi_display_int(qeipos);
 		qeishot.qeipos = qeipos;
-		qeishot.tick = tm4c_tick_after(FLASH_WAIT);
 		qeishot.varied = 1;
+		qeishot.tick = tm4c_tick_after(FLASH_WAIT);
 	} else if (qeishot.varied && time_after(qeishot.tick))
 		qeishot.paused = 1;
 	slot->tick = tm4c_tick_after(slot->csec);
