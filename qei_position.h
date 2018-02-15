@@ -7,7 +7,7 @@
 
 struct qeishot {
 	struct timer_task *slot;
-        int qeipos, target;
+        int qeipos;
         uint32_t tick;
         volatile int8_t paused;
         volatile int8_t varied;

@@ -124,9 +124,6 @@ int main(void)
 	uart_open(0);
 	uart_open(1);
 
-	qs = qeipos_setup(laser_distance());
-	db = blink_init(qs);
-
 	port0.mesg = mesg0;
 	port0.buf = mesg0;
 	port0.port = 0;
@@ -139,9 +136,12 @@ int main(void)
 	uart_write(1, hello, strlen(hello), 1);
 	tm4c_ledlit(GREEN, 10);
 
+	qs = qeipos_setup(laser_distance());
+	db = blink_init(qs);
 	while(1) {
 		if (qs->paused) {
-			blink_activate();
+			if (qs->qeipos != laser_distance())
+				blink_activate();
 			qs->paused = 0;
 			qs->varied = 0;
 		}

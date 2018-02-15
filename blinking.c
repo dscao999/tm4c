@@ -19,7 +19,7 @@ struct timer_task * blink_activate(void)
 
 	slot = task_slot_get();
 	if (slot) {
-		db.count = 16;
+		db.count = 14;
 		slot->task = blink_display;
 		slot->csec = 5;
 		slot->data = 0;
@@ -41,15 +41,15 @@ void blink_display(struct timer_task *slot)
 		ssi_display_shut();
 		if ((db.count % 4) == 0)
 			ssi_display_int(laser_distance());
-		if ((db.count % 4) == 2)
+		else if ((db.count % 4) == 2)
 			ssi_display_int(db.qs->qeipos);
 	} else
 		ssi_display_show();
-	if (--db.count == 0) {
+	if (--db.count == 2) {
+		db.count = 0;
 		dist = laser_distance();
 		tm4c_qei_setpos(QPORT, dist);
 		db.qs->qeipos = dist;
-		ssi_display_int(dist);
 		slot->task = 0;
 		db.qs->slot->task = qeipos_detect;
 		db.qs->slot->tick = tm4c_tick_after(0);
