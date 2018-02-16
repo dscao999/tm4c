@@ -19,7 +19,7 @@ struct timer_task * blink_activate(void)
 
 	slot = task_slot_get();
 	if (slot) {
-		db.count = 14;
+		db.count = 16;
 		slot->task = blink_display;
 		slot->csec = 5;
 		slot->data = 0;
