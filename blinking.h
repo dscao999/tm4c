@@ -6,7 +6,7 @@
 struct disp_blink {
 	struct timer_task *task;
         struct qeishot *qs;
-        uint16_t count;
+        volatile uint16_t count;
 };
 
 struct disp_blink * blink_init(struct qeishot *qs);

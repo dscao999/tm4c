@@ -34,6 +34,7 @@
 #include "ssi_display.h"
 #include "uart_laser.h"
 #include "blinking.h"
+#include "led_blink.h"
 
 //*****************************************************************************
 //
@@ -104,10 +105,14 @@ static void motor_start(struct global_control *g_ctrl)
 static struct uart_param port0, port1;
 static int check_key_press(struct global_control *g_ctrl)
 {
+	static int lit = 0;
 //	if (g_ctrl->in_motion)
 //		return 0;
+	if (lit == 0) {
+		led_blink_task(RED, 2);
+		lit = 1;
+	}
 	if (port0.rem < sizeof(mesg0 - 1) || port1.rem < sizeof(mesg1) - 1) {
-		tm4c_ledlit(RED, -1);
 		g_ctrl->btn_pressed = 1;
 	}
 	return g_ctrl->btn_pressed;
@@ -118,7 +123,7 @@ static struct disp_blink *db;
 
 static struct global_control g_ctrl = {0, 0};
 
-int main(void)
+void __attribute__((noreturn)) main(void)
 {
 	int len, len0;
 	char qeipos_str[16];
@@ -146,10 +151,10 @@ int main(void)
 	port1.rem = sizeof(mesg1) - 1;
 	uart_write(0, hello, strlen(hello), 1);
 	uart_write(1, hello, strlen(hello), 1);
-	tm4c_ledlit(BLUE, 10);
 
 	qs = qeipos_setup(laser_distance());
 	db = blink_init(qs);
+	led_blink_task(BLUE, 10);
 	while(1) {
 		if (qs->paused) {
 			if (qs->qeipos != laser_distance())

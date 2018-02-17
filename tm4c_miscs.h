@@ -41,7 +41,7 @@ static uint32_t tm4c_tick_after(int csecs)
 }
 
 void tm4c_setup(void);
-void tm4c_ledlit(enum led_type led, int csecs);
+void tm4c_ledlit(enum led_type led, int onoff);
 static inline void tm4c_delay(int csecs)
 {
 	uint32_t mark;

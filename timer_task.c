@@ -15,9 +15,11 @@ void task_init(void)
 struct timer_task *task_slot_get(void)
 {
 	int i;
-	for (i = 0; i < MAX_WORKERS; i++)
-		if (workers[i].task == 0)
-			return workers+i;
+	struct timer_task *w;
+
+	for (i = 0, w = workers; i < MAX_WORKERS; i++, w++)
+		if (w->task == 0)
+			return w;
 	return 0;
 }
 

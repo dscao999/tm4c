@@ -17,12 +17,11 @@ void tm4c_setup(void)
 	ROM_IntMasterEnable();
 	ROM_SysTickIntEnable();
 	ROM_SysTickEnable();
-	tm4c_ledlit(RED, 2);
 }
 
-void tm4c_ledlit(enum led_type led, int ticks)
+void tm4c_ledlit(enum led_type led, int onoff)
 {
-	uint8_t ledpin;
+	uint8_t ledpin, v;
 
 	switch(led) {
 	case RED:
@@ -39,9 +38,6 @@ void tm4c_ledlit(enum led_type led, int ticks)
 		break;
 	}
 
-	ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, 0xff);
-	if (ticks > 0) {
-		tm4c_delay(ticks);
-		ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, 0x00);
-	}
+	v = onoff? 0xff : 0x0;
+	ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, v);
 }
