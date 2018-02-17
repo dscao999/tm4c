@@ -39,53 +39,35 @@ static struct gpio_port gpioms[] = {
 	}
 };
 
-void tm4c_gpio_setup(enum GPIOPORT port)
+void tm4c_gpio_setup(enum GPIOPORT port, uint8_t inps, uint8_t outps, uint8_t intrps)
 {
 	struct gpio_port *gpio = gpioms+port;
-	uint32_t in_pins, out_pins, int_pins, intr;
+	uint32_t intr;
 	uint32_t sysperip;
 
 	switch(port) {
 	case GPIOA:
-		intr = 0;
-		in_pins = 0;
-		out_pins = 0;
-		int_pins = 0;
+		intr = INT_GPIOA;
 		sysperip = SYSCTL_PERIPH_GPIOA;
 		break;
 	case GPIOB:
-		intr = 0;
-		in_pins = 0;
-		out_pins = 0;
-		int_pins = 0;
+		intr = INT_GPIOB;
 		sysperip = SYSCTL_PERIPH_GPIOB;
 		break;
 	case GPIOC:
-		intr = INT_GPIOC_TM4C123;
-		in_pins = GPIO_PIN_4;
-		out_pins = 0;
-		int_pins = GPIO_INT_PIN_4;
+		intr = INT_GPIOC;
 		sysperip = SYSCTL_PERIPH_GPIOC;
 		break;
 	case GPIOD:
-		intr = INT_GPIOD_TM4C123;
-		in_pins = GPIO_PIN_3;
-		out_pins = 0;
-		int_pins = GPIO_INT_PIN_3;
+		intr = INT_GPIOD;
 		sysperip = SYSCTL_PERIPH_GPIOD;
 		break;
 	case GPIOE:
-		intr = 0;
-		in_pins = 0;
-		out_pins = 0;
-		int_pins = 0;
+		intr = INT_GPIOE;
 		sysperip = SYSCTL_PERIPH_GPIOE;
 		break;
 	case GPIOF:
-		intr = 0;
-		in_pins = 0;
-		out_pins = GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1;
-		int_pins = 0;
+		intr = INT_GPIOF;
 		sysperip = SYSCTL_PERIPH_GPIOF;
 		break;
 	default:
@@ -95,20 +77,21 @@ void tm4c_gpio_setup(enum GPIOPORT port)
 	ROM_SysCtlPeripheralEnable(sysperip);
 	while(!ROM_SysCtlPeripheralReady(sysperip))
                         ;
-	if (in_pins) {
-		ROM_GPIOPinTypeGPIOInput(gpio->base, in_pins);
-		HWREG(gpio->base+GPIO_O_PDR) = in_pins;
+	if (inps) {
+		ROM_GPIODirModeSet(gpio->base, inps, GPIO_DIR_MODE_IN);
+		HWREG(gpio->base+GPIO_O_DEN) |= inps;
 	}
-	if (out_pins) {
-		ROM_GPIOPinTypeGPIOOutput(gpio->base, out_pins);
-		HWREG(gpio->base+GPIO_O_PDR) = out_pins;
+	if (outps) {
+		ROM_GPIOPadConfigSet(gpio->base, outps, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
+		ROM_GPIODirModeSet(gpio->base, outps, GPIO_DIR_MODE_OUT);
 	}
-	if (int_pins && intr) {
+
+	if (intrps) {
 		HWREG(gpio->base+GPIO_O_IM) = 0;
-		ROM_GPIOIntTypeSet(gpio->base, int_pins, GPIO_FALLING_EDGE);
-		HWREG(gpio->base+GPIO_O_DEN) |= int_pins;
+		ROM_GPIOIntTypeSet(gpio->base, intrps, GPIO_FALLING_EDGE);
+		HWREG(gpio->base+GPIO_O_DEN) |= intrps;
 		HWREG(gpio->base+GPIO_O_ICR) = 0x0ff;
-		HWREG(gpio->base+GPIO_O_IM) = int_pins;
+		HWREG(gpio->base+GPIO_O_IM) = intrps;
 		ROM_IntPrioritySet(intr, 0x60);
 		ROM_IntEnable(intr);
 	}
@@ -137,18 +120,11 @@ void gpiod_isr(void)
 	gpiod_isr_nums++;
 }
 
-int tm4c_gpio_intpin(enum GPIOPORT port, uint32_t pins)
+void tm4c_gpio_write(enum GPIOPORT port, uint8_t pins, int on_off)
 {
-	struct gpio_port *gpio = gpioms + port;
-	
-	int retv;
+	struct gpio_port *gpio = gpioms+port;
+	uint8_t v;
 
-	retv = 0;
-	if (gpio->mis & pins) {
-		gpio->mis &= ~pins;
-		HWREG(gpio->base+GPIO_O_ICR) = pins;
-		HWREG(gpio->base+GPIO_O_IM) |= pins;
-		retv = 1;
-	}
-	return retv;
+	v = on_off? 0xff : 0x0;
+	ROM_GPIOPinWrite(gpio->base, pins, v);
 }

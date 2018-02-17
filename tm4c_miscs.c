@@ -23,16 +23,13 @@ void tm4c_setup(void)
 void tm4c_ledlit(enum led_type led, int ticks)
 {
 	uint8_t ledpin;
-	uint8_t intensity;
 
-	intensity = 10;
 	switch(led) {
 	case RED:
 		ledpin = GPIO_PIN_1;
 		break;
 	case BLUE:
 		ledpin = GPIO_PIN_2;
-		intensity = 100;
 		break;
 	case GREEN:
 		ledpin = GPIO_PIN_3;
@@ -42,7 +39,9 @@ void tm4c_ledlit(enum led_type led, int ticks)
 		break;
 	}
 
-	ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, intensity);
-	tm4c_delay(ticks);
-	ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, 0x0);
+	ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, 0xff);
+	if (ticks > 0) {
+		tm4c_delay(ticks);
+		ROM_GPIOPinWrite(GPIO_PORTF_BASE, ledpin, 0x00);
+	}
 }

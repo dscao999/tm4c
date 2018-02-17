@@ -17,9 +17,7 @@ struct gpio_port {
 void gpioc_isr(void);
 void gpiod_isr(void);
 
-void tm4c_gpio_setup(enum GPIOPORT port);
-int tm4c_gpio_intpin(enum GPIOPORT port, uint32_t pins);
+void tm4c_gpio_setup(enum GPIOPORT port, uint8_t inps, uint8_t outps, uint8_t intrps);
+void tm4c_gpio_write(enum GPIOPORT port, uint8_t pins, int on_off);
 
-extern uint32_t gpioc_isr_nums;
-extern uint32_t gpiod_isr_nums;
 #endif /* TM4C_GPIO_DSCAO__ */

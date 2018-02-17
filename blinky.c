@@ -88,30 +88,46 @@ static int uart_op(struct uart_param *p)
 	return echo;
 }
 
-static void start_motor(int start, int stop)
+struct global_control {
+	int target_pos;
+	volatile int cur_pos;
+	uint8_t in_motion;
+	volatile uint8_t btn_pressed;
+};
+
+static void motor_start(struct global_control *g_ctrl)
 {
+	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 1);
+	g_ctrl->in_motion = 1;
 }
 
 static struct uart_param port0, port1;
-
-static int check_key_press(void)
+static int check_key_press(struct global_control *g_ctrl)
 {
-	return port0.rem < sizeof(mesg0 - 1) || port1.rem < sizeof(mesg1) - 1;
+//	if (g_ctrl->in_motion)
+//		return 0;
+	if (port0.rem < sizeof(mesg0 - 1) || port1.rem < sizeof(mesg1) - 1) {
+		tm4c_ledlit(RED, -1);
+		g_ctrl->btn_pressed = 1;
+	}
+	return g_ctrl->btn_pressed;
 }
 
 static struct qeishot *qs;
 static struct disp_blink *db;
 
+static struct global_control g_ctrl = {0, 0};
+
 int main(void)
 {
-	int len, len0, motor_on = 0;
+	int len, len0;
 	char qeipos_str[16];
 
-	tm4c_gpio_setup(GPIOA);
-	tm4c_gpio_setup(GPIOB);
-	tm4c_gpio_setup(GPIOC);
-	tm4c_gpio_setup(GPIOD);
-	tm4c_gpio_setup(GPIOF);
+	tm4c_gpio_setup(GPIOA, 0, 0, 0);
+	tm4c_gpio_setup(GPIOB, 0, 0, 0);
+	tm4c_gpio_setup(GPIOC, 0, GPIO_PIN_4, 0);
+	tm4c_gpio_setup(GPIOD, 0, 0, 0);
+	tm4c_gpio_setup(GPIOF, 0, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1, 0);
 	tm4c_setup();
 	task_init();
 	tm4c_dma_enable();
@@ -130,7 +146,7 @@ int main(void)
 	port1.rem = sizeof(mesg1) - 1;
 	uart_write(0, hello, strlen(hello), 1);
 	uart_write(1, hello, strlen(hello), 1);
-	tm4c_ledlit(GREEN, 10);
+	tm4c_ledlit(BLUE, 10);
 
 	qs = qeipos_setup(laser_distance());
 	db = blink_init(qs);
@@ -166,10 +182,11 @@ int main(void)
 			uart_wait_dma(0);
 			uart_wait_dma(1);
 		}
-		if (db->count && !motor_on && check_key_press()) {
-			motor_on = 1;
-			db->count += 600*4;
-			start_motor(laser_distance(), tm4c_qei_getpos(0));
+		if (db->count && check_key_press(&g_ctrl)) {
+			db->count = 600;
+			g_ctrl.target_pos = tm4c_qei_getpos(QPORT);
+			g_ctrl.cur_pos = laser_distance();
+			motor_start(&g_ctrl);
 		}
 		uart_wait_dma(1);
 		uart_wait_dma(0);
