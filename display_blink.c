@@ -2,7 +2,7 @@
 #include "tm4c_qei.h"
 #include "ssi_display.h"
 #include "uart_laser.h"
-#include "blinking.h"
+#include "display_blink.h"
 
 static struct disp_blink db;
 

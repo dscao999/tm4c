@@ -33,7 +33,7 @@
 #include "tm4c_ssi.h"
 #include "ssi_display.h"
 #include "uart_laser.h"
-#include "blinking.h"
+#include "display_blink.h"
 #include "led_blink.h"
 
 //*****************************************************************************
