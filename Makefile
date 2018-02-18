@@ -22,7 +22,7 @@ LDSCRIPT := $(SBCDIR)/tm4c.ld
 #
 
 blinky: auto_raise.o ssi_display.o display_blink.o qei_position.o \
-	 timer_task.o led_blink.o $(sbcobjs)
+	 timer_task.o led_blink.o uart_op.o uart_laser.o $(sbcobjs)
 	$(LD) $(LDFLAGS) $^ -o $@
 #
 # The rule to clean out all the build products.

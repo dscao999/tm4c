@@ -5,6 +5,7 @@
 #include "inc/hw_types.h"
 #include "driverlib/gpio.h"
 #include "driverlib/udma.h"
+#include "driverlib/uart.h"
 #include "tm4c_miscs.h"
 #include "tm4c_dma.h"
 #include "tm4c_uart.h"

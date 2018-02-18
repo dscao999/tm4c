@@ -13,7 +13,7 @@ struct timer_task {
 #define MAX_WORKERS	5
 
 void task_init(void);
-struct timer_task *task_slot_set(void (*task)(struct timer_task *slot), void *data, int csec, int delay);
+struct timer_task * task_slot_set(void (*task)(struct timer_task *slot), void *data, int csec, int delay);
 
 static inline void task_slot_schedule(struct timer_task *slot)
 {

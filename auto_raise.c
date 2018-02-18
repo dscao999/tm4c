@@ -33,6 +33,7 @@
 #include "tm4c_ssi.h"
 #include "ssi_display.h"
 #include "uart_laser.h"
+#include "uart_op.h"
 #include "display_blink.h"
 #include "led_blink.h"
 
@@ -59,35 +60,6 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //*****************************************************************************
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
-
-#define MAX_BUFLEN	80
-struct uart_param {
-	uint16_t port;
-	uint16_t pos;
-	char buf[MAX_BUFLEN];
-};
-static char *uart_param_buf(struct uart_param *up)
-{
-	return up->buf + up->pos;
-}
-
-static int uart_op(struct uart_param *p)
-{
-	int count, i, echo, lenrem;
-	char *buf;
-
-	echo = 0;
-	buf = uart_param_buf(p);
-	lenrem = MAX_BUFLEN - p->pos - 1;
-	count = uart_read(p->port, buf, lenrem, 0);
-	for (i = 0; i < count; i++)
-		if (*(buf+i) == 0)
-			*(buf+i) = '\\';
-	if (count && (*(buf+count-1) == 0x0d || *(buf+count-1) == 0x0a))
-		echo = 1;
-	p->pos += count;
-	return echo;
-}
 
 struct global_control {
 	int target_pos;
@@ -134,7 +106,7 @@ void __attribute__((noreturn)) main(void)
 	tm4c_qei_setup(0, 0, 999, 0);
 	ssi_display_init(3, 2);
 	uart_open(0);
-	uart_open(1);
+	laser_init();
 
 	debug_port.port = 0;
 	debug_port.pos= 0;

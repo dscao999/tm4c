@@ -1,10 +1,6 @@
 #ifndef TM4C_UART_DSCAO__
 #define TM4C_UART_DSCAO__
 #include <stdint.h>
-#include "inc/hw_uart.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/uart.h"
-#include "driverlib/rom.h"
 
 #define UART_BUFSIZ	128
 struct uart_port {
