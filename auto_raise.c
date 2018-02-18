@@ -59,33 +59,33 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //*****************************************************************************
 static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
-static char mesg0[80], mesg1[80];
 
+#define MAX_BUFLEN	80
 struct uart_param {
-	uint16_t port, rem;
-	const char *mesg;
-	char *buf;
+	uint16_t port;
+	uint16_t pos;
+	char buf[MAX_BUFLEN];
 };
+static char *uart_param_buf(struct uart_param *up)
+{
+	return up->buf + up->pos;
+}
 
 static int uart_op(struct uart_param *p)
 {
-	int count, rlen, echo;
+	int count, i, echo, lenrem;
+	char *buf;
 
 	echo = 0;
-	count = uart_read(p->port, p->buf, p->rem, 0);
-	for (rlen = 0; rlen < count; rlen++)
-		if (*(p->buf+rlen) == 0)
-			*(p->buf+rlen) = '\\';
-	if (count && (*(p->buf+count-1) == 0x0d || *(p->buf+count-1) == 0x0a)) {
-		*(p->buf+count) = 0;
-		rlen = strlen(p->mesg);
-		if (rlen > 5 && memcmp(p->mesg, RESET, 5) == 0)
-			tm4c_reset();
-		else
-			echo = 1;
-	}
-	p->buf += count;
-	p->rem -= count;
+	buf = uart_param_buf(p);
+	lenrem = MAX_BUFLEN - p->pos - 1;
+	count = uart_read(p->port, buf, lenrem, 0);
+	for (i = 0; i < count; i++)
+		if (*(buf+i) == 0)
+			*(buf+i) = '\\';
+	if (count && (*(buf+count-1) == 0x0d || *(buf+count-1) == 0x0a))
+		echo = 1;
+	p->pos += count;
 	return echo;
 }
 
@@ -102,18 +102,14 @@ static void motor_start(struct global_control *g_ctrl)
 	g_ctrl->in_motion = 1;
 }
 
-static struct uart_param port0, port1;
+static struct uart_param debug_port;
 static int check_key_press(struct global_control *g_ctrl)
 {
-	static int lit = 0;
-//	if (g_ctrl->in_motion)
-//		return 0;
-	if (lit == 0) {
-		led_blink_task(RED, 5);
-		lit = 1;
-	}
-	if (port0.rem < sizeof(mesg0 - 1) || port1.rem < sizeof(mesg1) - 1) {
+	if (g_ctrl->in_motion)
+		return 0;
+	if (debug_port.pos > 0) {
 		g_ctrl->btn_pressed = 1;
+		debug_port.pos = 0;
 	}
 	return g_ctrl->btn_pressed;
 }
@@ -125,8 +121,7 @@ static struct global_control g_ctrl = {0, 0};
 
 void __attribute__((noreturn)) main(void)
 {
-	int len, len0;
-	char qeipos_str[16];
+	int len0;
 
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
@@ -141,21 +136,13 @@ void __attribute__((noreturn)) main(void)
 	uart_open(0);
 	uart_open(1);
 
-	port0.mesg = mesg0;
-	port0.buf = mesg0;
-	port0.port = 0;
-	port0.rem = sizeof(mesg0) - 1;
-	port1.mesg = mesg1;
-	port1.buf = mesg1;
-	port1.port = 1;
-	port1.rem = sizeof(mesg1) - 1;
+	debug_port.port = 0;
+	debug_port.pos= 0;
 	uart_write(0, hello, strlen(hello), 1);
-	uart_write(1, hello, strlen(hello), 1);
 
 	qs = qeipos_setup(laser_distance());
 	db = blink_init(qs);
 	led_blink_task(BLUE, 10);
-//	led_blink_sync(BLUE, 10);
 	while(1) {
 		if (qs->paused) {
 			if (qs->qeipos != laser_distance())
@@ -164,38 +151,27 @@ void __attribute__((noreturn)) main(void)
 			qs->varied = 0;
 		}
 		task_execute();
-		if (uart_op(&port0)) {
-			len = strlen(mesg0);
-			memcpy(mesg0+len-1, "--Echoed!", 9);
-			mesg0[len+8] = 0x0d;
-			uart_write(1, mesg0, len+9, 0);
-			len0 = num2str_dec(tm4c_qei_getpos(0), qeipos_str, 14);
-			qeipos_str[len0] = 0x0d;
-			uart_write(0, qeipos_str, len0+1, 0);
-			port0.buf = mesg0;
-			port0.rem = sizeof(mesg0) - 1;
-		}
-		if (uart_op(&port1)) {
-			len = strlen(mesg1);
-			memcpy(mesg1+len-1, "--Echoed!", 9);
-			mesg1[len+8] = 0x0d;
-			uart_write(0, mesg1, len+9, 0);
-			len0 = num2str_dec(tm4c_qei_getpos(0), qeipos_str, 14);
-			qeipos_str[len0] = 0x0d;
-			uart_write(1, qeipos_str, len0+1, 0);
-			port1.buf = mesg1;
-			port1.rem = sizeof(mesg1) - 1;
+		if (uart_op(&debug_port)) {
+			memcpy(uart_param_buf(&debug_port) - 1, " QEI Position: ", 15);
+			debug_port.pos += 14;
+			len0 = num2str_dec(tm4c_qei_getpos(QPORT), uart_param_buf(&debug_port), 14);
+			debug_port.pos += len0;
+			*uart_param_buf(&debug_port) = 0x0d;
 			uart_wait_dma(0);
-			uart_wait_dma(1);
+			uart_write(0, debug_port.buf, debug_port.pos+1, 0);
+			if (memcmp(debug_port.buf, RESET, 5) == 0) {
+				uart_wait_dma(0);
+				tm4c_reset();
+			}
+			debug_port.pos = 0;
 		}
 		if (db->count && check_key_press(&g_ctrl)) {
-			db->count = 600;
+			g_ctrl.btn_pressed = 0;
+			db->count += 600;
 			g_ctrl.target_pos = tm4c_qei_getpos(QPORT);
 			g_ctrl.cur_pos = laser_distance();
 			motor_start(&g_ctrl);
 		}
-		uart_wait_dma(1);
-		uart_wait_dma(0);
 	}
 
 	uart_close(0);

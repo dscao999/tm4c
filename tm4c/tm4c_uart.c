@@ -129,7 +129,9 @@ void uart_write(int port, const char *str, int len, int wait)
 	int dmalen;
 	struct uart_port *uart = uartms + port;
 
-	while (uart->txdma)
+	if (!wait && uart->txdma)
+		return;
+	while (wait && uart->txdma)
 		tm4c_waitint();
 	if (str < (char *)MEMADDR) {
 		uart_write_sync(uart, str, len);
@@ -137,7 +139,6 @@ void uart_write(int port, const char *str, int len, int wait)
 	}
 
 	dmalen = len > 512? 512 : len;
-/*	tm4c_dma_set(uart->tx_dmach, str, (char *)(uart->base+UART_O_DR), dmalen); */
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
 	uart->txdma = 1;
