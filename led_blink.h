@@ -2,7 +2,7 @@
 #define LED_BLINK_DSCAO__
 #include "tm4c_miscs.h"
 
-static inline void led_blink(enum led_type color, int csec)
+static inline void led_blink_sync(enum led_type color, int csec)
 {
 	tm4c_ledlit(color, 1);
 	tm4c_delay(csec);

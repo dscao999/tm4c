@@ -15,27 +15,21 @@ struct qeishot * qeipos_setup(int dist)
 	qeishot.paused = 0;
 	qeishot.varied = 0;
 	qeishot.tick = tm4c_tick_after(FLASH_WAIT);
-
-	qeishot.slot = task_slot_get();
-	qeishot.slot->task = qeipos_detect;
-	qeishot.slot->data = 0;
-	qeishot.slot->csec = 2;
-	qeishot.slot->tick = tm4c_tick_after(qeishot.slot->csec);
-
+	qeishot.slot = task_slot_set(qeipos_detect, &qeishot, 2, 0);
 	return &qeishot;
 }
 
 void qeipos_detect(struct timer_task *slot)
 {
 	int qeipos;
+	struct qeishot *qs = slot->data;
 
 	qeipos = tm4c_qei_getpos(QPORT);
-	if (qeipos != qeishot.qeipos) {
+	if (qeipos != qs->qeipos) {
 		ssi_display_int(qeipos);
-		qeishot.qeipos = qeipos;
-		qeishot.varied = 1;
-		qeishot.tick = tm4c_tick_after(FLASH_WAIT);
-	} else if (qeishot.varied && time_after(qeishot.tick))
-		qeishot.paused = 1;
-	slot->tick = tm4c_tick_after(slot->csec);
+		qs->qeipos = qeipos;
+		qs->varied = 1;
+		qs->tick = tm4c_tick_after(FLASH_WAIT);
+	} else if (qs->varied && time_after(qs->tick))
+		qs->paused = 1;
 }

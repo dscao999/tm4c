@@ -109,7 +109,7 @@ static int check_key_press(struct global_control *g_ctrl)
 //	if (g_ctrl->in_motion)
 //		return 0;
 	if (lit == 0) {
-		led_blink_task(RED, 2);
+		led_blink_task(RED, 5);
 		lit = 1;
 	}
 	if (port0.rem < sizeof(mesg0 - 1) || port1.rem < sizeof(mesg1) - 1) {
@@ -155,10 +155,11 @@ void __attribute__((noreturn)) main(void)
 	qs = qeipos_setup(laser_distance());
 	db = blink_init(qs);
 	led_blink_task(BLUE, 10);
+//	led_blink_sync(BLUE, 10);
 	while(1) {
 		if (qs->paused) {
 			if (qs->qeipos != laser_distance())
-				blink_activate();
+				blink_activate(db);
 			qs->paused = 0;
 			qs->varied = 0;
 		}
