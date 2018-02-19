@@ -284,3 +284,11 @@ void uart_wait_dma(int port)
 	while (uart->txdma)
 		tm4c_waitint();
 }
+
+void uart_wait(int port)
+{
+	struct uart_port *uart = uartms + port;
+
+	while (HWREG(uart->base+UART_O_FR) & UART_FR_BUSY)
+		;
+}

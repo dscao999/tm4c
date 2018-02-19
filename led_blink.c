@@ -22,5 +22,5 @@ void led_blink_task(enum led_type color, int csec)
 	led.color = color;
 	tm4c_ledlit(color, 1);
 	led.lit = 1;
-	task_slot_set(&led_shut, &led, csec, 1);
+	task_slot_setup(&led_shut, &led, csec, 1);
 }

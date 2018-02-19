@@ -16,7 +16,7 @@ void task_init(void)
 	}
 }
 
-struct timer_task *task_slot_set(void (*task)(struct timer_task *slot), void *data, int csec, int delay)
+struct timer_task *task_slot_setup(void (*task)(struct timer_task *slot), void *data, int csec, int delay)
 {
 	int i;
 	struct timer_task *w;

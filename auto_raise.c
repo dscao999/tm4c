@@ -62,8 +62,7 @@ static const char *RESET = "ReseT";
 static const char hello[] = "Initialization Completed!\n";
 
 struct global_control {
-	int target_pos;
-	volatile int cur_pos;
+	struct qeishot *qs;
 	uint8_t in_motion;
 	volatile uint8_t btn_pressed;
 };
@@ -72,6 +71,16 @@ static void motor_start(struct global_control *g_ctrl)
 {
 	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 1);
 	g_ctrl->in_motion = 1;
+	laser_start(2);
+	g_ctrl->btn_pressed = 0;
+}
+
+static void motor_stop(struct global_control *g_ctrl)
+{
+	laser_stop();
+	g_ctrl->btn_pressed = 0;
+	g_ctrl->in_motion = 0;
+	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 0);
 }
 
 static struct uart_param debug_port;
@@ -84,6 +93,11 @@ static int check_key_press(struct global_control *g_ctrl)
 		debug_port.pos = 0;
 	}
 	return g_ctrl->btn_pressed;
+}
+
+static int check_position(struct global_control *g_ctrl)
+{
+	return g_ctrl->in_motion && g_ctrl->qs->qeipos == laser_distance();
 }
 
 static struct qeishot *qs;
@@ -114,7 +128,7 @@ void __attribute__((noreturn)) main(void)
 
 	qs = qeipos_setup(laser_distance());
 	db = blink_init(qs);
-	led_blink_task(BLUE, 10);
+	g_ctrl.qs = qs;
 	while(1) {
 		if (qs->paused) {
 			if (qs->qeipos != laser_distance())
@@ -132,21 +146,18 @@ void __attribute__((noreturn)) main(void)
 			uart_wait_dma(0);
 			uart_write(0, debug_port.buf, debug_port.pos+1, 0);
 			if (memcmp(debug_port.buf, RESET, 5) == 0) {
-				uart_wait_dma(0);
+				uart_wait(0);
 				tm4c_reset();
 			}
 			debug_port.pos = 0;
 		}
 		if (db->count && check_key_press(&g_ctrl)) {
-			g_ctrl.btn_pressed = 0;
 			db->count += 600;
-			g_ctrl.target_pos = tm4c_qei_getpos(QPORT);
-			g_ctrl.cur_pos = laser_distance();
 			motor_start(&g_ctrl);
 		}
+		if (check_position(&g_ctrl)) {
+			db->count = 8 + (db->count % 4);
+			motor_stop(&g_ctrl);
+		}
 	}
-
-	uart_close(0);
-	uart_close(1);
-	tm4c_reset();
 }

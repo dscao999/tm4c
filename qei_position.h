@@ -15,5 +15,6 @@ struct qeishot {
 
 struct qeishot * qeipos_setup(int dist);
 void qeipos_detect(struct timer_task *slot);
+void qeipos_align(int dist);
 
 #endif  /* QEI_POSITION_DSCAO__ */

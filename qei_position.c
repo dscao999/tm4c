@@ -7,15 +7,20 @@
 
 static struct qeishot qeishot;
 
-struct qeishot * qeipos_setup(int dist)
+void qeipos_align(int dist)
 {
 	qeishot.qeipos = dist;
 	tm4c_qei_setpos(QPORT, dist);
 	ssi_display_int(dist);
+}
+
+struct qeishot * qeipos_setup(int dist)
+{
+	qeipos_align(dist);
 	qeishot.paused = 0;
 	qeishot.varied = 0;
 	qeishot.tick = tm4c_tick_after(FLASH_WAIT);
-	qeishot.slot = task_slot_set(qeipos_detect, &qeishot, 2, 0);
+	qeishot.slot = task_slot_setup(qeipos_detect, &qeishot, 2, 0);
 	return &qeishot;
 }
 

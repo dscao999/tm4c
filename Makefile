@@ -2,7 +2,7 @@
 # Include the common make definitions.
 #
 
-.PHONY: all clean clean_incl
+.PHONY: all clean clean_inc
 all: blinky
 
 include makedefs
@@ -30,5 +30,5 @@ blinky: auto_raise.o ssi_display.o display_blink.o qei_position.o \
 clean:
 	rm -rf blinky blinky.bin *.o
 
-clean_incl: clean
+clean_inc: clean
 	rm -f *.d

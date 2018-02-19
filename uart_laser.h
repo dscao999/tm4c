@@ -6,6 +6,7 @@
 struct laser_beam {
 	struct timer_task *slot;
 	volatile int dist;
+	int8_t armed;
 };
 
 void laser_init(void);
