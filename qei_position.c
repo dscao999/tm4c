@@ -1,5 +1,4 @@
 #include "tm4c_miscs.h"
-#include "tm4c_qei.h"
 #include "ssi_display.h"
 #include "qei_position.h"
 
@@ -7,24 +6,7 @@
 
 static struct qeishot qeishot;
 
-void qeipos_align(int dist)
-{
-	qeishot.qeipos = dist;
-	tm4c_qei_setpos(QPORT, dist);
-	ssi_display_int(dist);
-}
-
-struct qeishot * qeipos_setup(int dist)
-{
-	qeipos_align(dist);
-	qeishot.paused = 0;
-	qeishot.varied = 0;
-	qeishot.tick = tm4c_tick_after(FLASH_WAIT);
-	qeishot.slot = task_slot_setup(qeipos_detect, &qeishot, 2, 0);
-	return &qeishot;
-}
-
-void qeipos_detect(struct timer_task *slot)
+static void qeipos_detect(struct timer_task *slot)
 {
 	int qeipos;
 	struct qeishot *qs = slot->data;
@@ -37,4 +19,14 @@ void qeipos_detect(struct timer_task *slot)
 		qs->tick = tm4c_tick_after(FLASH_WAIT);
 	} else if (qs->varied && time_after(qs->tick))
 		qs->paused = 1;
+}
+
+struct qeishot * qeipos_setup(int dist)
+{
+	qeipos_align(&qeishot, dist);
+	qeishot.paused = 0;
+	qeishot.varied = 0;
+	qeishot.tick = tm4c_tick_after(FLASH_WAIT);
+	qeishot.slot = task_slot_setup(qeipos_detect, &qeishot, 2, 0);
+	return &qeishot;
 }

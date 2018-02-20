@@ -16,34 +16,23 @@ static int laser_measure_sync()
 	return 0;
 }
 
-void laser_init(void)
+static void laser_measure(struct timer_task *slot)
+{
+	struct laser_beam *lb = slot->data;
+
+	if (uart_op(&port)) {
+		lb->dist = str2num_dec(port.buf, port.pos);
+		port.pos = 0;
+	}
+}
+
+struct laser_beam * laser_init(int csec)
 {
 	uart_open(LUART_PORT);
 	port.port = LUART_PORT;
 	port.pos = 0;
 	beam.dist = laser_measure_sync();
 	beam.armed = 0;
-}
-
-static void laser_measure(struct timer_task *slot)
-{
-	if (uart_op(&port)) {
-		beam.dist = str2num_dec(port.buf, port.pos);
-		port.pos = 0;
-	}
-}
-
-void laser_start(int csec)
-{
 	beam.slot = task_slot_setup(laser_measure, &beam, csec, 0);
-}
-
-void laser_stop(void)
-{
-	task_slot_remove(beam.slot);
-}
-
-int laser_distance(void)
-{
-	return beam.dist;
+	return &beam;
 }

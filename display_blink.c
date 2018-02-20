@@ -8,23 +8,11 @@ static struct disp_blink db;
 
 struct disp_blink * blink_init(struct qeishot *qs)
 {
-	db.qs = qs;
 	db.count = 0;
 	return &db;
 }
 
-struct timer_task * blink_activate(struct disp_blink *blk)
-{
-	struct timer_task *slot;
-
-	blk->count = 16;
-	slot = task_slot_setup(blink_display, blk, 5, 0);
-	if (slot)
-		task_slot_suspend(blk->qs->slot);
-	return slot;
-}
-
-void blink_display(struct timer_task *slot)
+static void blink_display(struct timer_task *slot)
 {
 	struct disp_blink *blk;
 
@@ -36,15 +24,23 @@ void blink_display(struct timer_task *slot)
 	if ((blk->count % 2) == 0) {
 		ssi_display_shut();
 		if ((blk->count % 4) == 0)
-			ssi_display_int(laser_distance());
+			ssi_display_int(*blk->l_pos);
 		else if ((blk->count % 4) == 2)
-			ssi_display_int(blk->qs->qeipos);
+			ssi_display_int(*blk->q_pos);
 	} else
 		ssi_display_show();
 	if (--blk->count == 2) {
 		blk->count = 0;
-		qeipos_align(laser_distance());
 		task_slot_remove(slot);
-		task_slot_resume(blk->qs->slot);
 	}
+}
+
+struct timer_task * blink_activate(struct disp_blink *blk)
+{
+	struct timer_task *slot;
+
+	slot = task_slot_setup(blink_display, blk, 5, 0);
+	if (slot)
+		blk->count = 16;
+	return slot;
 }

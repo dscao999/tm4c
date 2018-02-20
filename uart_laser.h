@@ -9,10 +9,21 @@ struct laser_beam {
 	int8_t armed;
 };
 
-void laser_init(void);
+struct laser_beam * laser_init(int csec);
 
-int laser_distance(void);
-void laser_start(int csec);
-void laser_stop(void);
+static inline int laser_distance(const struct laser_beam *lb)
+{
+	return lb->dist;
+}
+
+static inline int laser_recali(struct laser_beam *lb, int csec)
+{
+	int lastc;
+
+	lastc = lb->slot->csec;
+	lb->slot->csec = csec;
+	task_slot_immediate(lb->slot);
+	return lastc;
+}
 
 #endif  /* UART_LASER_DSCAO__ */

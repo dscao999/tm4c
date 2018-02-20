@@ -63,24 +63,31 @@ static const char hello[] = "Initialization Completed!\n";
 
 struct global_control {
 	struct qeishot *qs;
+	struct laser_beam *lb;
+	struct disp_blink *db;
 	uint8_t in_motion;
 	volatile uint8_t btn_pressed;
 };
+
+static int motor_running(struct global_control *g_ctrl)
+{
+	return g_ctrl->in_motion;
+}
 
 static void motor_start(struct global_control *g_ctrl)
 {
 	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 1);
 	g_ctrl->in_motion = 1;
-	laser_start(2);
 	g_ctrl->btn_pressed = 0;
+	laser_recali(g_ctrl->lb, 2);
 }
 
 static void motor_stop(struct global_control *g_ctrl)
 {
-	laser_stop();
 	g_ctrl->btn_pressed = 0;
 	g_ctrl->in_motion = 0;
 	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 0);
+	laser_recali(g_ctrl->lb, 20);
 }
 
 static struct uart_param debug_port;
@@ -95,19 +102,17 @@ static int check_key_press(struct global_control *g_ctrl)
 	return g_ctrl->btn_pressed;
 }
 
-static int check_position(struct global_control *g_ctrl)
+static int position_match(struct global_control *g_ctrl)
 {
-	return g_ctrl->in_motion && g_ctrl->qs->qeipos == laser_distance();
+	return qeipos_position(g_ctrl->qs) == laser_distance(g_ctrl->lb);
 }
 
-static struct qeishot *qs;
-static struct disp_blink *db;
 
 static struct global_control g_ctrl = {0, 0};
 
 void __attribute__((noreturn)) main(void)
 {
-	int len0;
+	int len0, dist;
 
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
@@ -120,21 +125,23 @@ void __attribute__((noreturn)) main(void)
 	tm4c_qei_setup(0, 0, 999, 0);
 	ssi_display_init(3, 2);
 	uart_open(0);
-	laser_init();
-
 	debug_port.port = 0;
 	debug_port.pos= 0;
 	uart_write(0, hello, strlen(hello), 1);
 
-	qs = qeipos_setup(laser_distance());
-	db = blink_init(qs);
-	g_ctrl.qs = qs;
+	g_ctrl.lb = laser_init(20);
+	dist = laser_distance(g_ctrl.lb);
+	g_ctrl.qs = qeipos_setup(dist);
+	g_ctrl.db = blink_init(g_ctrl.qs);
+	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
+	g_ctrl.db->q_pos = &g_ctrl.qs->qeipos;
 	while(1) {
-		if (qs->paused) {
-			if (qs->qeipos != laser_distance())
-				blink_activate(db);
-			qs->paused = 0;
-			qs->varied = 0;
+		if (qeipos_in_window(g_ctrl.qs)) {
+			qeipos_reset_window(g_ctrl.qs);
+			if (qeipos_position(g_ctrl.qs) != dist) {
+				blink_activate(g_ctrl.db);
+				qeipos_suspend(g_ctrl.qs);
+			}
 		}
 		task_execute();
 		if (uart_op(&debug_port)) {
@@ -151,13 +158,24 @@ void __attribute__((noreturn)) main(void)
 			}
 			debug_port.pos = 0;
 		}
-		if (db->count && check_key_press(&g_ctrl)) {
-			db->count += 600;
-			motor_start(&g_ctrl);
+		if (blink_ing(g_ctrl.db)) {
+			if (check_key_press(&g_ctrl)) {
+				blink_enlong(g_ctrl.db, 600);
+				motor_start(&g_ctrl);
+			}
+		} else if (qeipos_suspended(g_ctrl.qs)) {
+			qeipos_align(g_ctrl.qs, dist);
+			qeipos_resume(g_ctrl.qs);
 		}
-		if (check_position(&g_ctrl)) {
-			db->count = 8 + (db->count % 4);
-			motor_stop(&g_ctrl);
+		if (motor_running(&g_ctrl)) {
+			if (position_match(&g_ctrl)) {
+				motor_stop(&g_ctrl);
+				blink_taxing(g_ctrl.db);
+			}
+		}
+		if (!blink_ing(g_ctrl.db) && dist != laser_distance(g_ctrl.lb)) {
+			dist = laser_distance(g_ctrl.lb);
+			qeipos_align(g_ctrl.qs, dist);
 		}
 	}
 }

@@ -20,6 +20,11 @@ static inline void task_slot_schedule(struct timer_task *slot)
 	slot->tick = tm4c_tick_after(slot->csec);
 }
 
+static inline void task_slot_immediate(struct timer_task *slot)
+{
+	slot->tick = tm4c_tick_after(0);
+}
+
 static inline void task_slot_suspend(struct timer_task *slot)
 {
 	slot->hang = 1;
@@ -32,6 +37,11 @@ static inline void task_slot_resume(struct timer_task *slot)
 }
 
 int task_slot_remove(struct timer_task *slot);
+
+static inline int task_slot_suspended(struct timer_task *slot)
+{
+	return slot->hang;
+}
 
 void task_execute(void);
 
