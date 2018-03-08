@@ -163,19 +163,19 @@ void __attribute__((noreturn)) main(void)
 				blink_enlong(g_ctrl.db, 600);
 				motor_start(&g_ctrl);
 			}
-		} else if (qeipos_suspended(g_ctrl.qs)) {
-			qeipos_align(g_ctrl.qs, dist);
-			qeipos_resume(g_ctrl.qs);
+		} else {
+			if (qeipos_suspended(g_ctrl.qs))
+				qeipos_resume(g_ctrl.qs);
+			if (dist != laser_distance(g_ctrl.lb)) {
+				dist = laser_distance(g_ctrl.lb);
+				qeipos_align(g_ctrl.qs, dist);
+			}
 		}
 		if (motor_running(&g_ctrl)) {
 			if (position_match(&g_ctrl)) {
 				motor_stop(&g_ctrl);
 				blink_taxing(g_ctrl.db);
 			}
-		}
-		if (!blink_ing(g_ctrl.db) && dist != laser_distance(g_ctrl.lb)) {
-			dist = laser_distance(g_ctrl.lb);
-			qeipos_align(g_ctrl.qs, dist);
 		}
 	}
 }
