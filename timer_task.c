@@ -45,7 +45,7 @@ void task_execute(void)
 	for (i = 0, w = workers; i < MAX_WORKERS; i++, w++) {
 		if (w->task == 0 || w->hang)
 			continue;
-		if (time_after(w->tick)) {
+		if (time_arrived(w->tick)) {
 			w->task(w);
 			task_slot_schedule(w);
 		}

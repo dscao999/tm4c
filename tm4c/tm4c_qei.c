@@ -25,7 +25,7 @@ static void qei_config(uint32_t base, int intr,  uint32_t pos)
 {
 	uint32_t qeimode;
 
-	qeimode = QEI_CONFIG_CAPTURE_A|QEI_CONFIG_NO_RESET|QEI_CONFIG_QUADRATURE|QEI_CONFIG_NO_SWAP;
+	qeimode = QEI_CONFIG_CAPTURE_A_B|QEI_CONFIG_NO_RESET|QEI_CONFIG_QUADRATURE|QEI_CONFIG_NO_SWAP;
 	ROM_QEIConfigure(base, qeimode, 0xffffffffu);
 //	ROM_QEIFilterConfigure(base, QEI_FILTCNT_17);
 	HWREG(base+QEI_O_CTL) = (HWREG(base+QEI_O_CTL) & ~(QEI_CTL_FILTCNT_M))|QEI_FILTCNT_17;

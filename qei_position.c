@@ -17,7 +17,7 @@ static void qeipos_detect(struct timer_task *slot)
 		qs->qeipos = qeipos;
 		qs->varied = 1;
 		qs->tick = tm4c_tick_after(FLASH_WAIT);
-	} else if (qs->varied && time_after(qs->tick))
+	} else if (qs->varied && time_arrived(qs->tick))
 		qs->paused = 1;
 }
 
