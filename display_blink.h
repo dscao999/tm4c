@@ -9,7 +9,7 @@ struct disp_blink {
         volatile uint16_t count;
 };
 
-struct disp_blink * blink_init(struct qeishot *qs);
+struct disp_blink * blink_init(void);
 struct timer_task * blink_activate(struct disp_blink *blk);
 static inline int blink_ing(const struct disp_blink *blk)
 {

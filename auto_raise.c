@@ -132,7 +132,7 @@ void __attribute__((noreturn)) main(void)
 	g_ctrl.lb = laser_init(20);
 	dist = laser_distance(g_ctrl.lb);
 	g_ctrl.qs = qeipos_setup(dist);
-	g_ctrl.db = blink_init(g_ctrl.qs);
+	g_ctrl.db = blink_init();
 	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
 	g_ctrl.db->q_pos = &g_ctrl.qs->qeipos;
 	while(1) {

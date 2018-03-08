@@ -6,7 +6,7 @@
 
 static struct disp_blink db;
 
-struct disp_blink * blink_init(struct qeishot *qs)
+struct disp_blink * blink_init(void)
 {
 	db.count = 0;
 	return &db;
