@@ -11,9 +11,10 @@ struct timer_task {
 	uint16_t hang;
 };
 #define MAX_WORKERS	5
+typedef void (*task_fun)(struct timer_task *slot);
 
 void task_init(void);
-struct timer_task * task_slot_setup(void (*task)(struct timer_task *slot), void *data, int csec, int delay);
+struct timer_task * task_slot_setup(task_fun task, void *data, int csec, int delay);
 
 static inline void task_slot_schedule(struct timer_task *slot)
 {
