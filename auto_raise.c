@@ -65,6 +65,7 @@ struct global_control {
 	struct qeishot *qs;
 	struct laser_beam *lb;
 	struct disp_blink *db;
+	int dist;
 	uint8_t in_motion;
 	volatile uint8_t btn_pressed;
 };
@@ -112,7 +113,8 @@ static struct global_control g_ctrl = {0, 0};
 
 void __attribute__((noreturn)) main(void)
 {
-	int len0, dist;
+	int len0;
+	int8_t blinked = 0;
 
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
@@ -130,20 +132,21 @@ void __attribute__((noreturn)) main(void)
 	uart_write(0, hello, strlen(hello), 1);
 
 	g_ctrl.lb = laser_init(20);
-	dist = laser_distance(g_ctrl.lb);
-	g_ctrl.qs = qeipos_setup(dist);
+	g_ctrl.dist = laser_distance(g_ctrl.lb);
+	g_ctrl.qs = qeipos_setup(g_ctrl.dist);
 	g_ctrl.db = blink_init();
 	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
 	g_ctrl.db->q_pos = &g_ctrl.qs->qeipos;
 	while(1) {
+		task_execute();
 		if (qeipos_in_window(g_ctrl.qs)) {
 			qeipos_reset_window(g_ctrl.qs);
-			if (qeipos_position(g_ctrl.qs) != dist) {
+			if (qeipos_position(g_ctrl.qs) != g_ctrl.dist) {
 				blink_activate(g_ctrl.db);
 				qeipos_suspend(g_ctrl.qs);
+				blinked = 1;
 			}
 		}
-		task_execute();
 		if (uart_op(&debug_port)) {
 			memcpy(uart_param_buf(&debug_port) - 1, " QEI Position: ", 15);
 			debug_port.pos += 14;
@@ -159,22 +162,28 @@ void __attribute__((noreturn)) main(void)
 			debug_port.pos = 0;
 		}
 		if (blink_ing(g_ctrl.db)) {
-			if (check_key_press(&g_ctrl)) {
-				blink_enlong(g_ctrl.db, 600);
-				motor_start(&g_ctrl);
+			if (motor_running(&g_ctrl)) {
+				if (position_match(&g_ctrl)) {
+					motor_stop(&g_ctrl);
+					blink_taxing(g_ctrl.db);
+					blinked = 0;
+				}
+			} else {
+				if (check_key_press(&g_ctrl)) {
+					blink_enlong(g_ctrl.db, 600);
+					motor_start(&g_ctrl);
+				}
 			}
 		} else {
 			if (qeipos_suspended(g_ctrl.qs))
 				qeipos_resume(g_ctrl.qs);
-			if (dist != laser_distance(g_ctrl.lb)) {
-				dist = laser_distance(g_ctrl.lb);
-				qeipos_align(g_ctrl.qs, dist);
+			if (g_ctrl.dist != laser_distance(g_ctrl.lb)) {
+				g_ctrl.dist = laser_distance(g_ctrl.lb);
+				qeipos_align(g_ctrl.qs, g_ctrl.dist);
 			}
-		}
-		if (motor_running(&g_ctrl)) {
-			if (position_match(&g_ctrl)) {
-				motor_stop(&g_ctrl);
-				blink_taxing(g_ctrl.db);
+			if (blinked) {
+				blinked = 0;
+				qeipos_align(g_ctrl.qs, g_ctrl.dist);
 			}
 		}
 	}
