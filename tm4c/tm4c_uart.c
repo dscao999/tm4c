@@ -113,7 +113,7 @@ void uart_open(int port)
 	ROM_IntEnable(intr);
 }
 
-static void uart_write_sync(struct uart_port *uart, const char *str, int len)
+static void uart_direct_write(struct uart_port *uart, const char *str, int len)
 {
 	const unsigned char *ustr;
 	int i;
@@ -123,6 +123,13 @@ static void uart_write_sync(struct uart_port *uart, const char *str, int len)
 			;
 		HWREG(uart->base+UART_O_DR) = *ustr;
 	}
+}
+
+void uart_write_sync(int port, const char *str, int len)
+{
+	struct uart_port *uart = uartms + port;
+
+	uart_direct_write(uart, str, len);
 }
 
 void uart_write(int port, const char *str, int len, int wait)
@@ -135,7 +142,7 @@ void uart_write(int port, const char *str, int len, int wait)
 	while (wait && uart->txdma)
 		tm4c_waitint();
 	if (str < (char *)MEMADDR) {
-		uart_write_sync(uart, str, len);
+		uart_direct_write(uart, str, len);
 		return;
 	}
 

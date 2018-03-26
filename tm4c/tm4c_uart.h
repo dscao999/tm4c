@@ -19,6 +19,7 @@ void uart_open(int port);
 void uart_close(int port);
 
 void uart_write(int port, const char *str, int len, int wait);
+void uart_write_sync(int port, const char *str, int len);
 int uart_read(int port, char *buf, int len, int wait);
 void uart_wait_dma(int port);
 void uart_wait(int port);
