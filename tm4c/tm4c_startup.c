@@ -37,7 +37,7 @@
 // Forward declaration of the default fault handlers.
 //
 //*****************************************************************************
-void ResetISR(void);
+static void __attribute__((noreturn)) ResetISR(void);
 static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
@@ -49,7 +49,7 @@ static void udma_error(void);
 // The entry point for the application.
 //
 //*****************************************************************************
-extern int main(void);
+extern __attribute__((noreturn)) void main(void);
 
 //*****************************************************************************
 //
@@ -249,8 +249,7 @@ extern uint32_t _ebss;
 // application.
 //
 //*****************************************************************************
-void
-ResetISR(void)
+static void __attribute__((noreturn)) ResetISR(void)
 {
 	uint32_t *pui32Src, *pui32Dest;
 

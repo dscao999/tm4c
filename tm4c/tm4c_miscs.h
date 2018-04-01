@@ -19,11 +19,17 @@ extern const uint32_t CYCLES;
 extern const uint32_t MEMADDR;
 extern uint32_t cycles;
 
-#define time_before(cur, tmark) \
-	((int32_t)cur - (int32_t)tmark < 0)
+#define time_before(tmark) \
+	((int32_t)sys_ticks - (int32_t)tmark < 0)
 
-#define time_after(cur, tmark) \
-	((int32_t)cur - (int32_t)tmark > 0)
+#define time_after(tmark) \
+	((int32_t)sys_ticks - (int32_t)tmark > 0)
+
+#define time_at(tmark) \
+	((int32_t)sys_ticks - (int32_t)tmark == 0)
+
+#define time_arrived(tmark) \
+	((int32_t)sys_ticks - (int32_t)tmark >= 0)
 
 static inline int csec2tick(int csecs)
 {
@@ -35,14 +41,19 @@ static inline void tm4c_memsync(void)
 	__asm__ __volatile__("dsb");
 }
 
+static uint32_t tm4c_tick_after(int csecs)
+{
+	return sys_ticks + csec2tick(csecs);
+}
+
 void tm4c_setup(void);
-void tm4c_ledlit(enum led_type led, int csecs);
+void tm4c_ledlit(enum led_type led, int onoff);
 static inline void tm4c_delay(int csecs)
 {
 	uint32_t mark;
 
-	mark = sys_ticks + csec2tick(csecs);
-	while (time_before(sys_ticks, mark))
+	mark = tm4c_tick_after(csecs);
+	while (time_before(mark))
 		__asm__ __volatile__("wfi");
 }
 

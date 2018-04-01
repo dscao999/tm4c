@@ -35,6 +35,9 @@ static inline int str2num_dec(const char *digits, int len)
 	char sign;
 	const char *digit;
 
+	if (len <= 0)
+		return 0;
+
 	digit = digits;
 	neg = 1;
 	sign = *digit;

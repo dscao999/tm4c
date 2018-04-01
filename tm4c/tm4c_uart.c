@@ -5,9 +5,12 @@
 #include "inc/hw_types.h"
 #include "driverlib/gpio.h"
 #include "driverlib/udma.h"
+#include "driverlib/uart.h"
 #include "tm4c_miscs.h"
 #include "tm4c_dma.h"
 #include "tm4c_uart.h"
+
+#define MAXDMA_LEN	64
 
 static volatile uint32_t uart0_isr_nums = 0;
 static volatile uint32_t uart1_isr_nums = 0;
@@ -23,7 +26,7 @@ static struct uart_port uartms[] = {
 		.rxhead = 0,
 		.rxtail = 0,
 		.tx_dmach = UDMA_CHANNEL_UART1TX,
-/*		.rx_dmach = UDMA_CHANNEL_UART1RX */
+		.rx_dmach = UDMA_CHANNEL_UART1RX 
 	}
 };
 
@@ -35,8 +38,6 @@ void uart_open(int port)
 	baud = 115200;
 	switch(port) {
 	case 0:
-		ROM_GPIOPadConfigSet(GPIO_PORTA_BASE, GPIO_PIN_1,
-			GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
 		ROM_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0|GPIO_PIN_1);
 		ROM_GPIOPinConfigure(GPIO_PA0_U0RX);
 		ROM_GPIOPinConfigure(GPIO_PA1_U0TX);
@@ -45,8 +46,7 @@ void uart_open(int port)
 		intr = INT_UART0;
 		break;
 	case 1:
-		ROM_GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_1,
-			GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
+		baud = 19200;
 		ROM_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0|GPIO_PIN_1);
 		ROM_GPIOPinConfigure(GPIO_PB0_U1RX);
 		ROM_GPIOPinConfigure(GPIO_PB1_U1TX);
@@ -116,7 +116,7 @@ void uart_open(int port)
 	ROM_IntEnable(intr);
 }
 
-static void uart_write_sync(struct uart_port *uart, const char *str, int len)
+static void uart_direct_write(struct uart_port *uart, const char *str, int len)
 {
 	const unsigned char *ustr;
 	int i;
@@ -128,20 +128,28 @@ static void uart_write_sync(struct uart_port *uart, const char *str, int len)
 	}
 }
 
+void uart_write_sync(int port, const char *str, int len)
+{
+	struct uart_port *uart = uartms + port;
+
+	uart_direct_write(uart, str, len);
+}
+
 void uart_write(int port, const char *str, int len, int wait)
 {
 	int dmalen;
 	struct uart_port *uart = uartms + port;
 
-	while (uart->txdma)
+	if (!wait && uart->txdma)
+		return;
+	while (wait && uart->txdma)
 		tm4c_waitint();
 	if (str < (char *)MEMADDR) {
-		uart_write_sync(uart, str, len);
+		uart_direct_write(uart, str, len);
 		return;
 	}
 
-	dmalen = len > 512? 512 : len;
-/*	tm4c_dma_set(uart->tx_dmach, str, (char *)(uart->base+UART_O_DR), dmalen); */
+	dmalen = len > MAXDMA_LEN? MAXDMA_LEN : len;
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
 	uart->txdma = 1;
@@ -149,6 +157,46 @@ void uart_write(int port, const char *str, int len, int wait)
 	HWREG(UDMA_ENASET) = 1 << uart->tx_dmach;
 	while (wait && uart->txdma)
 		tm4c_waitint();
+}
+
+void uart_write_cmd_expect(int port, const char cmd, int explen)
+{
+	int dmalen;
+	struct uart_port *uart = uartms + port;
+
+	if (uart->txdma || uart->rxdma)
+		return;
+	dmalen = explen > MAXDMA_LEN? MAXDMA_LEN : explen;
+	ROM_uDMAChannelTransferSet(uart->rx_dmach|UDMA_PRI_SELECT,
+		UDMA_MODE_BASIC, (void *)(uart->base+UART_O_DR), (void *)uart->rxbuf, dmalen);
+	uart->rxdma = 1;
+	HWREG(uart->base+UART_O_DMACTL) |= UART_DMA_RX;
+	HWREG(uart->base+UART_O_DR) = cmd;
+	uart->at_tick = tm4c_tick_after(0);
+}
+
+int uart_read_expect(int port, char *buf, int len)
+{
+	uint8_t *uchar, cret;
+	int count, tail, head;
+	struct uart_port *uart = uartms + port;
+
+	while (uart->rxdma)
+		tm4c_delay(1);
+
+	tail = uart->rxtail;
+	head = uart->rxhead;
+	count = 0;
+	uchar = (uint8_t *)buf;
+	cret = 0;
+	while (tail != head && count < len) {
+		cret = uart->rxbuf[tail];
+		*uchar++ = cret;
+		tail = (tail + 1) & 0x7f;
+		count++;
+	}
+	uart->rxtail = tail;
+	return count;
 }
 
 int uart_read(int port, char *buf, int len, int wait)
@@ -252,6 +300,11 @@ static void uart_isr(struct uart_port *uart)
 		HWREG(uart->base+UART_O_DMACTL) &= ~UART_DMA_TX;
 		uart->txdma = 0;
 	}
+	if (uart->rx_dmach != 0 && (udma_int & (1 << uart->rx_dmach))) {
+		HWREG(UDMA_CHIS) = (1 << uart->rx_dmach);
+		HWREG(uart->base+UART_O_DMACTL) &= ~UART_DMA_RX;
+		uart->rxdma = 0;
+	}
 
 	if (mis & UART_INT_OE) {
 		uart->oerr++;
@@ -285,4 +338,12 @@ void uart_wait_dma(int port)
 
 	while (uart->txdma)
 		tm4c_waitint();
+}
+
+void uart_wait(int port)
+{
+	struct uart_port *uart = uartms + port;
+
+	while (HWREG(uart->base+UART_O_FR) & UART_FR_BUSY)
+		;
 }
