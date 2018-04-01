@@ -7,12 +7,46 @@
 
 #define LUART_PORT	1
 
+struct lasercmd {
+	int elen;
+	char cmd;
+};
+static const struct lasercmd  lcmds[] = {
+	{ 5, 'O'}, { 14, 'D'}, { 14, 'F'}, { 14, 'S'}, { 5, 'C'}
+};
+
 static struct laser_beam beam;
 static struct uart_param port;
 
 static int laser_measure_sync()
 {
-	uart_write(LUART_PORT, "Distance now: 0\n", 16, 0);
+	char resp[16];
+	int len;
+
+	uart_write_cmd_expect(LUART_PORT, lcmds[0].cmd, lcmds[0].elen);
+	len = uart_read_expect(LUART_PORT, resp, 16);
+	resp[len] = 0x0d;
+	uart_wait_dma(0);
+	uart_write(0, resp, len+1, 0);
+
+	uart_write_cmd_expect(LUART_PORT, lcmds[1].cmd, lcmds[1].elen);
+	len = uart_read_expect(LUART_PORT, resp, 16);
+	resp[len] = 0x0d;
+	uart_wait_dma(0);
+	uart_write(0, resp, len+1, 0);
+
+	uart_write_cmd_expect(LUART_PORT, lcmds[5].cmd, lcmds[5].elen);
+	len = uart_read_expect(LUART_PORT, resp, 16);
+	resp[len] = 0x0d;
+	uart_wait_dma(0);
+	uart_write(0, resp, len+1, 0);
+
+	uart_write_cmd_expect(LUART_PORT, lcmds[3].cmd, lcmds[3].elen);
+	len = uart_read_expect(LUART_PORT, resp, 16);
+	resp[len] = 0x0d;
+	uart_wait_dma(0);
+	uart_write(0, resp, len+1, 0);
+
 	return 0;
 }
 
