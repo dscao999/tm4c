@@ -8,44 +8,41 @@
 #define LUART_PORT	1
 
 struct lasercmd {
-	int elen;
+	uint8_t explen, cmplen;
 	char cmd;
+	char cmprsp[16];
 };
-static const struct lasercmd  lcmds[] = {
-	{ 5, 'O'}, { 14, 'D'}, { 14, 'F'}, { 14, 'S'}, { 5, 'C'}
-};
+static const struct lasercmd  l_open = {7, 5, 'O', "O,OK!"},
+	l_sm = {16, 2, 'D', "D:"},
+	l_fm = {16, 2, 'F', "F:"},
+	l_sn = {16, 2, 'S', "S:"},
+	l_close = {7, 5, 'C', "C,OK!"};
+
 
 static struct laser_beam beam;
 static struct uart_param port;
 
 static int laser_measure_sync()
 {
-	char resp[16];
+/*	char resp[24];
 	int len;
 
-	uart_write_cmd_expect(LUART_PORT, lcmds[0].cmd, lcmds[0].elen);
-	len = uart_read_expect(LUART_PORT, resp, 16);
-	resp[len] = 0x0d;
-	uart_wait_dma(0);
-	uart_write(0, resp, len+1, 0);
-
-	uart_write_cmd_expect(LUART_PORT, lcmds[1].cmd, lcmds[1].elen);
-	len = uart_read_expect(LUART_PORT, resp, 16);
-	resp[len] = 0x0d;
-	uart_wait_dma(0);
-	uart_write(0, resp, len+1, 0);
+	uart_write_cmd_expect(LUART_PORT, l_open.cmd, l_open.explen);
+	len = uart_read_expect(LUART_PORT, resp, sizeof(resp));
+	if (len != l_open.explen || memcmp(l_open.cmprsp, resp, l_open.cmplen))
+		
+	uart_write_cmd_expect(LUART_PORT, l_sm.cmd, l_sm.explen);
+	len = uart_read_expect(LUART_PORT, resp, sizeof(resp));
+	if (len != l_sm.explen || memcmp(l_sm.cmprsp, resp, l_sm.cmplen))
 
 	uart_write_cmd_expect(LUART_PORT, lcmds[5].cmd, lcmds[5].elen);
 	len = uart_read_expect(LUART_PORT, resp, 16);
-	resp[len] = 0x0d;
 	uart_wait_dma(0);
 	uart_write(0, resp, len+1, 0);
 
-	uart_write_cmd_expect(LUART_PORT, lcmds[3].cmd, lcmds[3].elen);
-	len = uart_read_expect(LUART_PORT, resp, 16);
-	resp[len] = 0x0d;
-	uart_wait_dma(0);
-	uart_write(0, resp, len+1, 0);
+	uart_write_cmd_expect(LUART_PORT, l_close.cmd, l_close.explen);
+	len = uart_read_expect(LUART_PORT, resp, sizeof(resp));
+	if (len != l_close.explen || memcmp(l_close.cmprsp, resp, l_close.cmplen)) */
 
 	return 0;
 }
