@@ -91,8 +91,7 @@ static void motor_stop(struct global_control *g_ctrl)
 	laser_recali(g_ctrl->lb, 20);
 }
 
-static struct uart_param debug_port;
-static struct uart_param l_port = {.port = 1};
+struct uart_param debug_port;
 static int check_key_press(struct global_control *g_ctrl)
 {
 	if (g_ctrl->in_motion)
@@ -132,7 +131,7 @@ void __attribute__((noreturn)) main(void)
 	debug_port.pos= 0;
 	uart_write(0, hello, strlen(hello), 1);
 
-	g_ctrl.lb = laser_init(20);
+	g_ctrl.lb = laser_init(20, &debug_port);
 	g_ctrl.dist = laser_distance(g_ctrl.lb);
 	g_ctrl.qs = qeipos_setup(g_ctrl.dist);
 	g_ctrl.db = blink_init();
@@ -149,32 +148,11 @@ void __attribute__((noreturn)) main(void)
 			}
 		}
 		if (uart_op(&debug_port)) {
-			if (debug_port.pos == 2)
-				uart_write_sync(1, debug_port.buf, 1);
-			memcpy(uart_param_buf(&debug_port) - 1, " QEI Position: ", 15);
-			debug_port.pos += 14;
-			len = num2str_dec(tm4c_qei_getpos(QPORT), uart_param_buf(&debug_port), 14);
-			debug_port.pos += len;
-			*uart_param_buf(&debug_port) = 0x0d;
-			uart_wait_dma(0);
-			uart_write(0, debug_port.buf, debug_port.pos+1, 0);
 			if (memcmp(debug_port.buf, RESET, 5) == 0) {
 				uart_wait(0);
 				tm4c_reset();
 			}
 			debug_port.pos = 0;
-		}
-		if (uart_op(&l_port)) {
-			char mesg[24];
-
-			len = bytes2str_hex((unsigned char *)l_port.buf, l_port.pos, mesg);
-			mesg[len++] = ':';
-			len += num2str_dec(l_port.pos, mesg+len, 15);
-			mesg[len] = 0x0d;
-			uart_wait_dma(0);
-			uart_write(0, mesg, len+1, 1);
-			uart_write(0, l_port.buf, l_port.pos, 1);
-			l_port.pos = 0;
 		}
 		if (blink_ing(g_ctrl.db)) {
 			if (motor_running(&g_ctrl)) {

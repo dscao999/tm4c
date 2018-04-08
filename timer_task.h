@@ -3,18 +3,19 @@
 #include <stdint.h>
 #include "tm4c_miscs.h"
 
+struct timer_task;
+typedef void (*task_fun_p)(struct timer_task *slot);
 struct timer_task {
 	uint32_t tick;
-	void (*task)(struct timer_task *slot);
+	task_fun_p task;
 	void *data;
 	uint16_t csec;
 	uint16_t hang;
 };
 #define MAX_WORKERS	5
-typedef void (*task_fun)(struct timer_task *slot);
 
 void task_init(void);
-struct timer_task * task_slot_setup(task_fun task, void *data, int csec, int delay);
+struct timer_task * task_slot_setup(task_fun_p task, void *data, int csec, int delay);
 
 static inline void task_slot_schedule(struct timer_task *slot)
 {

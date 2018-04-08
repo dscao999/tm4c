@@ -2,6 +2,7 @@
 #define UART_LASER_DSCAO__
 
 #include "timer_task.h"
+#include "uart_op.h"
 
 struct laser_beam {
 	struct timer_task *slot;
@@ -9,7 +10,7 @@ struct laser_beam {
 	int8_t armed;
 };
 
-struct laser_beam * laser_init(int csec);
+struct laser_beam * laser_init(int csec, struct uart_param *debug_port);
 
 static inline int laser_distance(const struct laser_beam *lb)
 {

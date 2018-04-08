@@ -31,23 +31,28 @@ static inline uint32_t str2num_hex(const char *digits, int len)
 static inline int str2num_dec(const char *digits, int len)
 {
 	uint32_t result = 0;
-	int i, d, neg;
+	int d, neg;
 	char sign;
-	const char *digit;
+	const char *digit, *dend;
 
 	if (len <= 0)
 		return 0;
 
+	dend = digits + len;
 	digit = digits;
+	while (*digit == ' ' && digit < dend)
+		digit++;
+	if (digit == dend)
+		return 0;
+
 	neg = 1;
 	sign = *digit;
 	if (sign == '-' || sign == '+') {
 		digit++;
-		len--;
 		if (sign == '-')
 			neg = -1;
 	}
-	for (i = 0; i < len && *digit >= '0' && *digit <= '9'; i++) {
+	while (digit < dend && *digit >= '0' && *digit <= '9') {
 		result *= 10;
 		d = *digit++ - '0';
 		result += d;

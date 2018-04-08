@@ -173,11 +173,12 @@ void uart_write_cmd_expect(int port, const char cmd, int explen)
 	HWREG(uart->base+UART_O_DMACTL) |= UART_DMA_RX;
 	HWREG(uart->base+UART_O_DR) = cmd;
 	uart->at_tick = tm4c_tick_after(0);
+	uart->rxhead = (uart->rxhead + dmalen) & 0x7f;
 }
 
 int uart_read_expect(int port, char *buf, int len)
 {
-	uint8_t *uchar, cret;
+	uint8_t *uchar;
 	int count, tail, head;
 	struct uart_port *uart = uartms + port;
 
@@ -188,15 +189,21 @@ int uart_read_expect(int port, char *buf, int len)
 	head = uart->rxhead;
 	count = 0;
 	uchar = (uint8_t *)buf;
-	cret = 0;
 	while (tail != head && count < len) {
-		cret = uart->rxbuf[tail];
-		*uchar++ = cret;
+		*uchar++ = uart->rxbuf[tail];
 		tail = (tail + 1) & 0x7f;
 		count++;
 	}
-	uart->rxtail = tail;
+	uart->rxtail = 0;
 	return count;
+}
+
+static inline int i_step(int *pv)
+{
+	int v = *pv;
+
+	*pv = (v + 1) & 0x7f;
+	return v;
 }
 
 int uart_read(int port, char *buf, int len, int wait)
@@ -205,21 +212,17 @@ int uart_read(int port, char *buf, int len, int wait)
 	int count, tail, head;
 	struct uart_port *uart = uartms + port;
 
-	tail = uart->rxtail;
-	while (wait && tail == uart->rxhead)
+	while (wait && uart->rxtail == uart->rxhead)
 		tm4c_waitint();
 
-	head = uart->rxhead;
 	count = 0;
 	uchar = (uint8_t *)buf;
 	cret = 0;
-	while (tail != head && count < len && cret != 0x0d && cret != 0x0a) {
-		cret = uart->rxbuf[tail];
+	while (uart->rxtail != uart->rxhead && count < len && cret != 0x0d && cret != 0x0a) {
+		cret = uart->rxbuf[i_step(&uart->rxtail)];
 		*uchar++ = cret;
-		tail = (tail + 1) & 0x7f;
 		count++;
 	}
-	uart->rxtail = tail;
 	return count;
 }
 
@@ -274,15 +277,13 @@ void uart_close(int port)
 
 static void uart_recv(struct uart_port *uart)
 {
-	int32_t head, lenrem;
+	int32_t lenrem;
 
 	while ((HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0) {
-		head = uart->rxhead;
-		lenrem = UART_BUFSIZ - head;
-		uart->rxbuf[head++] = HWREG(uart->base+UART_O_DR);
+		lenrem = UART_BUFSIZ - uart->rxhead;
+		uart->rxbuf[i_step(&uart->rxhead)] = HWREG(uart->base+UART_O_DR);
 		while (--lenrem > 0 && (HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0)
-			uart->rxbuf[head++] = HWREG(uart->base+UART_O_DR);
-		uart->rxhead = head & 0x7f;
+			uart->rxbuf[i_step(&uart->rxhead)] = HWREG(uart->base+UART_O_DR);
 	}
 }
 
