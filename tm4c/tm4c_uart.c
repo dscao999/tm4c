@@ -10,10 +10,19 @@
 #include "tm4c_dma.h"
 #include "tm4c_uart.h"
 
-#define MAXDMA_LEN	64
-
 static volatile uint32_t uart0_isr_nums = 0;
 static volatile uint32_t uart1_isr_nums = 0;
+static const int ubuf_mask = UART_BUFSIZ - 1;
+
+static volatile int rxdma = 0;
+
+static int idx_step(int *idx)
+{
+	int prev = *idx;
+	*idx = (prev + 1) & ubuf_mask;
+	return prev;
+}
+
 static struct uart_port uartms[] = {
 	{
 		.base = UART0_BASE,
@@ -92,7 +101,6 @@ void uart_open(int port)
 	ROM_UARTFIFOLevelSet(uart->base, UART_FIFO_TX2_8, UART_FIFO_RX6_8);
 	ROM_UARTFIFOEnable(uart->base);
 	imask = UART_INT_OE|UART_INT_FE|UART_INT_TX|UART_INT_RX|UART_INT_RT;
-	HWREG(uart->base+UART_O_IM) |= imask;
 
 	HWREG(uart->base+UART_O_DMACTL) &= ~(UART_DMA_ERR_RXSTOP|UART_DMA_TX|UART_DMA_RX);
 	ROM_uDMAChannelAttributeDisable(uart->tx_dmach, UDMA_ATTR_ALL);
@@ -103,6 +111,7 @@ void uart_open(int port)
 		ROM_uDMAChannelControlSet(uart->rx_dmach|UDMA_PRI_SELECT,
 			UDMA_SIZE_8|UDMA_SRC_INC_NONE|UDMA_DST_INC_8|UDMA_ARB_8);
 	}
+	HWREG(uart->base+UART_O_IM) = imask;
 
 	ROM_UARTEnable(uart->base);
 	sflag = HWREG(uart->base+UART_O_FR);
@@ -116,7 +125,7 @@ void uart_open(int port)
 	ROM_IntEnable(intr);
 }
 
-static void uart_direct_write(struct uart_port *uart, const char *str, int len)
+static int uart_direct_write(struct uart_port *uart, const char *str, int len)
 {
 	const unsigned char *ustr;
 	int i;
@@ -126,30 +135,29 @@ static void uart_direct_write(struct uart_port *uart, const char *str, int len)
 			;
 		HWREG(uart->base+UART_O_DR) = *ustr;
 	}
+	return len;
 }
 
-void uart_write_sync(int port, const char *str, int len)
+int uart_write_sync(int port, const char *str, int len)
 {
 	struct uart_port *uart = uartms + port;
 
-	uart_direct_write(uart, str, len);
+	return uart_direct_write(uart, str, len);
 }
 
-void uart_write(int port, const char *str, int len, int wait)
+int uart_write(int port, const char *str, int len, int wait)
 {
 	int dmalen;
 	struct uart_port *uart = uartms + port;
 
 	if (!wait && uart->txdma)
-		return;
+		return 0;
 	while (wait && uart->txdma)
 		tm4c_waitint();
-	if (str < (char *)MEMADDR) {
-		uart_direct_write(uart, str, len);
-		return;
-	}
+	if (str < (char *)MEMADDR)
+		return uart_direct_write(uart, str, len);
 
-	dmalen = len > MAXDMA_LEN? MAXDMA_LEN : len;
+	dmalen = len > MAX_DMALEN? MAX_DMALEN : len;
 	ROM_uDMAChannelTransferSet(uart->tx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)str, (void *)(uart->base+UART_O_DR), dmalen);
 	uart->txdma = 1;
@@ -157,6 +165,7 @@ void uart_write(int port, const char *str, int len, int wait)
 	HWREG(UDMA_ENASET) = 1 << uart->tx_dmach;
 	while (wait && uart->txdma)
 		tm4c_waitint();
+	return dmalen;
 }
 
 void uart_write_cmd_expect(int port, const char cmd, int explen)
@@ -166,63 +175,61 @@ void uart_write_cmd_expect(int port, const char cmd, int explen)
 
 	if (uart->txdma || uart->rxdma)
 		return;
-	dmalen = explen > MAXDMA_LEN? MAXDMA_LEN : explen;
+	dmalen = explen > MAX_DMALEN? MAX_DMALEN : explen;
 	ROM_uDMAChannelTransferSet(uart->rx_dmach|UDMA_PRI_SELECT,
 		UDMA_MODE_BASIC, (void *)(uart->base+UART_O_DR), (void *)uart->rxbuf, dmalen);
 	uart->rxdma = 1;
+	rxdma = 1;
+	uart->dmalen = dmalen;
 	HWREG(uart->base+UART_O_DMACTL) |= UART_DMA_RX;
+	while(HWREG(uart->base+UART_O_FR) & UART_FR_TXFF)
+		;
+	uart->rxhead = 0;
+	uart->rxtail = 0;
+	HWREG(UDMA_ENASET) = 1 << uart->rx_dmach;
 	HWREG(uart->base+UART_O_DR) = cmd;
 	uart->at_tick = tm4c_tick_after(0);
-	uart->rxhead = (uart->rxhead + dmalen) & 0x7f;
 }
 
 int uart_read_expect(int port, char *buf, int len)
 {
 	uint8_t *uchar;
-	int count, tail, head;
+	int count, tail;
 	struct uart_port *uart = uartms + port;
 
-	while (uart->rxdma)
-		tm4c_delay(1);
+	if (uart->rxdma == 1)
+		return 0;
 
 	tail = uart->rxtail;
-	head = uart->rxhead;
 	count = 0;
 	uchar = (uint8_t *)buf;
-	while (tail != head && count < len) {
-		*uchar++ = uart->rxbuf[tail];
-		tail = (tail + 1) & 0x7f;
+	while (tail != uart->rxhead && count < len) {
+		*uchar++ = uart->rxbuf[idx_step(&tail)];
 		count++;
 	}
-	uart->rxtail = 0;
+	uart->rxtail = tail;
 	return count;
-}
-
-static inline int i_step(int *pv)
-{
-	int v = *pv;
-
-	*pv = (v + 1) & 0x7f;
-	return v;
 }
 
 int uart_read(int port, char *buf, int len, int wait)
 {
 	uint8_t *uchar, cret;
-	int count, tail, head;
+	int count, tail;
 	struct uart_port *uart = uartms + port;
 
 	while (wait && uart->rxtail == uart->rxhead)
 		tm4c_waitint();
 
+	tail = uart->rxtail;
 	count = 0;
 	uchar = (uint8_t *)buf;
 	cret = 0;
-	while (uart->rxtail != uart->rxhead && count < len && cret != 0x0d && cret != 0x0a) {
-		cret = uart->rxbuf[i_step(&uart->rxtail)];
+	while (tail != uart->rxhead && count < len && cret != 0x0d && cret != 0x0a) {
+		cret = uart->rxbuf[idx_step(&tail)];
 		*uchar++ = cret;
 		count++;
 	}
+	uart->rxtail = tail;
 	return count;
 }
 
@@ -277,13 +284,14 @@ void uart_close(int port)
 
 static void uart_recv(struct uart_port *uart)
 {
-	int32_t lenrem;
+	int head;
 
 	while ((HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0) {
-		lenrem = UART_BUFSIZ - uart->rxhead;
-		uart->rxbuf[i_step(&uart->rxhead)] = HWREG(uart->base+UART_O_DR);
-		while (--lenrem > 0 && (HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0)
-			uart->rxbuf[i_step(&uart->rxhead)] = HWREG(uart->base+UART_O_DR);
+		head = uart->rxhead;
+		uart->rxbuf[idx_step(&head)] = HWREG(uart->base+UART_O_DR);
+		while ((HWREG(uart->base+UART_O_FR) & UART_FR_RXFE) == 0)
+			uart->rxbuf[idx_step(&head)] = HWREG(uart->base+UART_O_DR);
+		uart->rxhead = head;
 	}
 }
 
@@ -297,13 +305,14 @@ static void uart_isr(struct uart_port *uart)
 		HWREG(uart->base+UART_O_ICR) = mis;
 	udma_int = HWREG(UDMA_CHIS);
 	if (udma_int & (1 << uart->tx_dmach)) {
-		HWREG(UDMA_CHIS) = (1 << uart->tx_dmach);
 		HWREG(uart->base+UART_O_DMACTL) &= ~UART_DMA_TX;
+		HWREG(UDMA_CHIS) = (1 << uart->tx_dmach);
 		uart->txdma = 0;
 	}
 	if (uart->rx_dmach != 0 && (udma_int & (1 << uart->rx_dmach))) {
-		HWREG(UDMA_CHIS) = (1 << uart->rx_dmach);
 		HWREG(uart->base+UART_O_DMACTL) &= ~UART_DMA_RX;
+		HWREG(UDMA_CHIS) = (1 << uart->rx_dmach);
+		uart->rxhead = uart->dmalen;
 		uart->rxdma = 0;
 	}
 
@@ -337,7 +346,7 @@ void uart_wait_dma(int port)
 {
 	struct uart_port *uart = uartms + port;
 
-	while (uart->txdma)
+	while (uart->txdma || uart->rxdma)
 		tm4c_waitint();
 }
 

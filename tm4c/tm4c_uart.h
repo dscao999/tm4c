@@ -8,6 +8,7 @@ struct uart_port {
 	uint32_t at_tick;
 	uint16_t oerr;
 	uint16_t ferr;
+	uint16_t dmalen;
 	uint8_t tx_dmach;
 	uint8_t rx_dmach;
 	volatile uint8_t txdma, rxdma;
@@ -19,8 +20,8 @@ struct uart_port {
 void uart_open(int port);
 void uart_close(int port);
 
-void uart_write(int port, const char *str, int len, int wait);
-void uart_write_sync(int port, const char *str, int len);
+int uart_write(int port, const char *str, int len, int wait);
+int uart_write_sync(int port, const char *str, int len);
 void uart_write_cmd_expect(int port, const char cmd, int explen);
 
 int uart_read(int port, char *buf, int len, int wait);

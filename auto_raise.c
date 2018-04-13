@@ -111,10 +111,11 @@ static int position_match(struct global_control *g_ctrl)
 
 static struct global_control g_ctrl = {0, 0};
 
+extern struct uart_param l_port;
+
 void __attribute__((noreturn)) main(void)
 {
 	int8_t blinked = 0;
-	int len;
 
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
@@ -152,7 +153,12 @@ void __attribute__((noreturn)) main(void)
 				uart_wait(0);
 				tm4c_reset();
 			}
+			uart_write_sync(l_port.port, debug_port.buf, 1);
 			debug_port.pos = 0;
+		}
+		if (uart_op(&l_port)) {
+			uart_write(debug_port.port, l_port.buf, l_port.pos, 1);
+			l_port.pos = 0;
 		}
 		if (blink_ing(g_ctrl.db)) {
 			if (motor_running(&g_ctrl)) {
