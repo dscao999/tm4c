@@ -17,6 +17,11 @@ struct timer_task {
 void task_init(void);
 struct timer_task * task_slot_setup(task_fun_p task, void *data, int csec, int delay);
 
+static inline void task_slot_schedule_csec(struct timer_task *slot, int csec)
+{
+	slot->tick = tm4c_tick_after(csec);
+}
+
 static inline void task_slot_schedule(struct timer_task *slot)
 {
 	slot->tick = tm4c_tick_after(slot->csec);
@@ -45,6 +50,6 @@ static inline int task_slot_suspended(struct timer_task *slot)
 	return slot->hang;
 }
 
-void task_execute(void);
+int task_execute(void);
 
 #endif /* TIMER_TASK_DSCAO__ */

@@ -21,35 +21,39 @@ struct timer_task *task_slot_setup(task_fun_p task, void *data, int csec, int de
 	int i;
 	struct timer_task *w;
 
-	for (i = 0, w = workers; i < MAX_WORKERS; i++, w++)
-		if (w->task == 0) {
-			nows++;
-			w->task = task;
-			w->data = data;
-			w->csec = csec;
-			if (delay)
-				w->tick = tm4c_tick_after(csec);
-			else
-				w->tick = tm4c_tick_after(0);
-			w->hang = 0;
-			return w;
-		}
-	return 0;
+	for (i = 0, w = workers; i < MAX_WORKERS && w->task != 0; i++, w++)
+		;
+	if (i < MAX_WORKERS) {
+		nows++;
+		w->task = task;
+		w->data = data;
+		w->csec = csec;
+		if (delay)
+			w->tick = tm4c_tick_after(csec);
+		else
+			w->tick = tm4c_tick_after(0);
+		w->hang = 0;
+	} else
+		w = 0;
+	return w;
 }
 
-void task_execute(void)
+int task_execute(void)
 {
-	int i;
+	int i, ex;
 	struct timer_task *w;
 
+	ex = 0;
 	for (i = 0, w = workers; i < MAX_WORKERS; i++, w++) {
 		if (w->task == 0 || w->hang)
 			continue;
 		if (time_arrived(w->tick)) {
 			w->task(w);
 			task_slot_schedule(w);
+			ex++;
 		}
 	}
+	return ex;
 }
 
 int task_slot_remove(struct timer_task *slot)

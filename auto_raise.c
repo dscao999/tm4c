@@ -65,7 +65,6 @@ struct global_control {
 	struct qeishot *qs;
 	struct laser_beam *lb;
 	struct disp_blink *db;
-	int dist;
 	uint8_t in_motion;
 	volatile uint8_t btn_pressed;
 };
@@ -133,7 +132,6 @@ void __attribute__((noreturn)) main(void)
 	uart_write(0, hello, strlen(hello), 1);
 
 	g_ctrl.lb = laser_init(20, &debug_port);
-	g_ctrl.dist = laser_distance(g_ctrl.lb);
 	g_ctrl.qs = qeipos_setup(g_ctrl.dist);
 	g_ctrl.db = blink_init();
 	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
@@ -142,7 +140,7 @@ void __attribute__((noreturn)) main(void)
 		task_execute();
 		if (qeipos_in_window(g_ctrl.qs)) {
 			qeipos_reset_window(g_ctrl.qs);
-			if (qeipos_position(g_ctrl.qs) != g_ctrl.dist) {
+			if (qeipos_position(g_ctrl.qs) != laser_distance(g_ctrl.lb)) {
 				blink_activate(g_ctrl.db);
 				qeipos_suspend(g_ctrl.qs);
 				blinked = 1;
@@ -153,12 +151,7 @@ void __attribute__((noreturn)) main(void)
 				uart_wait(0);
 				tm4c_reset();
 			}
-			uart_write_sync(l_port.port, debug_port.buf, 1);
 			debug_port.pos = 0;
-		}
-		if (uart_op(&l_port)) {
-			uart_write(debug_port.port, l_port.buf, l_port.pos, 1);
-			l_port.pos = 0;
 		}
 		if (blink_ing(g_ctrl.db)) {
 			if (motor_running(&g_ctrl)) {
