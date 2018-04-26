@@ -160,7 +160,7 @@ void __attribute__((noreturn)) main(void)
 	dbg_uart.pos= 0;
 	uart_write(0, hello, strlen(hello), 1);
 
-	g_ctrl.lb = laser_init(20);
+	g_ctrl.lb = laser_init(50);
 	g_ctrl.qs = qeipos_setup(laser_dist(g_ctrl.lb));
 	g_ctrl.db = blink_init();
 	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
