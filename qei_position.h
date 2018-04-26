@@ -14,17 +14,22 @@ struct qeishot {
         volatile int8_t varied;
 };
 
-static inline int qeipos_position(struct qeishot *qs)
+static inline int qeipos_pos(struct qeishot *qs)
 {
 	return qs->qeipos;
 }
 
-static inline int qeipos_in_window(struct qeishot *qs)
+static inline int qeipos_paused(struct qeishot *qs)
 {
 	return qs->paused;
 }
 
-static inline void qeipos_reset_window(struct qeishot *qs)
+static inline int qeipos_varied(struct qeishot *qs)
+{
+	return qs->varied;
+}
+
+static inline void qeipos_dect_reset(struct qeishot *qs)
 {
 	qs->paused = 0;
 	qs->varied = 0;
@@ -51,7 +56,6 @@ static inline void qeipos_align(struct qeishot *qs, int dist)
 {       
         qs->qeipos = dist;
         tm4c_qei_setpos(QPORT, dist);
-        ssi_display_int(dist);
 }
 
 #endif  /* QEI_POSITION_DSCAO__ */

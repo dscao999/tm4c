@@ -79,7 +79,7 @@ static void motor_start(struct global_control *g_ctrl)
 	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 1);
 	g_ctrl->in_motion = 1;
 	g_ctrl->btn_pressed = 0;
-	laser_recali(g_ctrl->lb, 2);
+	laser_speedup(g_ctrl->lb, 1);
 }
 
 static void motor_stop(struct global_control *g_ctrl)
@@ -87,35 +87,64 @@ static void motor_stop(struct global_control *g_ctrl)
 	g_ctrl->btn_pressed = 0;
 	g_ctrl->in_motion = 0;
 	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 0);
-	laser_recali(g_ctrl->lb, 20);
+	laser_speedup(g_ctrl->lb, -1);
 }
 
-struct uart_param debug_port;
-static int check_key_press(struct global_control *g_ctrl)
+struct uart_param dbg_uart;
+static int check_key_pressed(struct global_control *g_ctrl)
 {
 	if (g_ctrl->in_motion)
 		return 0;
-	if (debug_port.pos > 0) {
+	if (dbg_uart.pos > 0) {
 		g_ctrl->btn_pressed = 1;
-		debug_port.pos = 0;
+		dbg_uart.pos = 0;
 	}
 	return g_ctrl->btn_pressed;
 }
 
 static int position_match(struct global_control *g_ctrl)
 {
-	return qeipos_position(g_ctrl->qs) == laser_distance(g_ctrl->lb);
+	return qeipos_pos(g_ctrl->qs) == laser_dist(g_ctrl->lb);
 }
 
+static void global_task(struct global_control *gc)
+{
+	if (qeipos_paused(gc->qs)) {
+		if (qeipos_pos(gc->qs) != laser_dist(gc->lb)) {
+			blink_activate(gc->db);
+			qeipos_suspend(gc->qs);
+		}
+		qeipos_dect_reset(gc->qs);
+	}
+	if (blink_ing(gc->db)) {
+		if (motor_running(gc)) {
+			if (position_match(gc)) {
+				motor_stop(gc);
+				blink_taxing(gc->db);
+			}
+		} else {
+			if (check_key_pressed(gc)) {
+				blink_enlong(gc->db, 600);
+				motor_start(gc);
+			}
+		}
+	} else {
+		if (qeipos_suspended(gc->qs))
+			qeipos_resume(gc->qs);
+		if (!qeipos_varied(gc->qs)) {
+			if (qeipos_pos(gc->qs) != laser_dist(gc->lb))
+				qeipos_align(gc->qs, laser_dist(gc->lb));
+			if (ssi_display_get() != laser_dist(gc->lb))
+				ssi_display_int(laser_dist(gc->lb));
+		} else if (ssi_display_get() != qeipos_pos(gc->qs))
+			ssi_display_int(qeipos_pos(gc->qs));
+	}
+}
 
 static struct global_control g_ctrl = {0, 0};
 
-extern struct uart_param l_port;
-
 void __attribute__((noreturn)) main(void)
 {
-	int8_t blinked = 0;
-
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
 	tm4c_gpio_setup(GPIOC, 0, GPIO_PIN_4, 0);
@@ -127,56 +156,24 @@ void __attribute__((noreturn)) main(void)
 	tm4c_qei_setup(0, 0, 999, 0);
 	ssi_display_init(3, 2);
 	uart_open(0);
-	debug_port.port = 0;
-	debug_port.pos= 0;
+	dbg_uart.port = 0;
+	dbg_uart.pos= 0;
 	uart_write(0, hello, strlen(hello), 1);
 
-	g_ctrl.lb = laser_init(20, &debug_port);
-	g_ctrl.qs = qeipos_setup(g_ctrl.dist);
+	g_ctrl.lb = laser_init(20);
+	g_ctrl.qs = qeipos_setup(laser_dist(g_ctrl.lb));
 	g_ctrl.db = blink_init();
 	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
 	g_ctrl.db->q_pos = &g_ctrl.qs->qeipos;
 	while(1) {
 		task_execute();
-		if (qeipos_in_window(g_ctrl.qs)) {
-			qeipos_reset_window(g_ctrl.qs);
-			if (qeipos_position(g_ctrl.qs) != laser_distance(g_ctrl.lb)) {
-				blink_activate(g_ctrl.db);
-				qeipos_suspend(g_ctrl.qs);
-				blinked = 1;
-			}
-		}
-		if (uart_op(&debug_port)) {
-			if (memcmp(debug_port.buf, RESET, 5) == 0) {
+		if (uart_op(&dbg_uart)) {
+			if (memcmp(dbg_uart.buf, RESET, 5) == 0) {
 				uart_wait(0);
 				tm4c_reset();
 			}
-			debug_port.pos = 0;
+			dbg_uart.pos = 0;
 		}
-		if (blink_ing(g_ctrl.db)) {
-			if (motor_running(&g_ctrl)) {
-				if (position_match(&g_ctrl)) {
-					motor_stop(&g_ctrl);
-					blink_taxing(g_ctrl.db);
-					blinked = 0;
-				}
-			} else {
-				if (check_key_press(&g_ctrl)) {
-					blink_enlong(g_ctrl.db, 600);
-					motor_start(&g_ctrl);
-				}
-			}
-		} else {
-			if (qeipos_suspended(g_ctrl.qs))
-				qeipos_resume(g_ctrl.qs);
-			if (g_ctrl.dist != laser_distance(g_ctrl.lb)) {
-				g_ctrl.dist = laser_distance(g_ctrl.lb);
-				qeipos_align(g_ctrl.qs, g_ctrl.dist);
-			}
-			if (blinked) {
-				blinked = 0;
-				qeipos_align(g_ctrl.qs, g_ctrl.dist);
-			}
-		}
+		global_task(&g_ctrl);
 	}
 }

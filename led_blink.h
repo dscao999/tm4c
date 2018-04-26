@@ -9,6 +9,6 @@ static inline void led_blink_sync(enum led_type color, int csec)
 	tm4c_ledlit(color, 0);
 }
 
-void led_blink_task(enum led_type color, int csec);
+void led_blink_async(enum led_type color, int csec);
 #endif /* LED_BLINK_DSCAO__ */
 

@@ -10,19 +10,22 @@ struct laser_beam {
 	uint8_t stage, ocnt;
 };
 
-struct laser_beam * laser_init(int csec, struct uart_param *debug_port);
+struct laser_beam * laser_init(int csec);
 
-static inline int laser_distance(const struct laser_beam *lb)
+static inline int laser_dist(const struct laser_beam *lb)
 {
 	return lb->dist;
 }
 
-static inline int laser_recali(struct laser_beam *lb, int csec)
+static inline int laser_speedup(struct laser_beam *lb, int up)
 {
 	int lastc;
 
 	lastc = lb->slot->csec;
-	lb->slot->csec = csec;
+	if (up > 0)
+		lb->slot->csec = 20;
+	else
+		lb->slot->csec = 2;
 	task_slot_immediate(lb->slot);
 	return lastc;
 }

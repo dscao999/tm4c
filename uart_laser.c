@@ -1,7 +1,6 @@
 #include "miscutils.h"
 #include "tm4c_uart.h"
 #include "uart_laser.h"
-
 #include "led_blink.h"
 
 #define LUART_PORT	1
@@ -17,6 +16,7 @@ static const struct lasercmd  l_open = {7, 5, 'O', "O,OK!"},
 	l_sn = {16, 2, 'S', "S:"},
 	l_close = {7, 5, 'C', "C,OK!"};
 
+extern struct uart_param dbg_uart;
 
 static struct laser_beam beam;
 static struct uart_param *d_port;
@@ -63,9 +63,10 @@ static int laser_op(const struct lasercmd *cmd)
 
 static int laser_measure_sync()
 {
-	int dist, len;
+	int dist, len, rdist;
 
-	dist = -1;
+	rdist = 0;
+	dist = 0;
 
 	len = laser_op(&l_open);
 	if (len == -1)
@@ -75,6 +76,7 @@ static int laser_measure_sync()
 	if (len == -1)
 		goto close_out;
 	dist = dist_decode(l_port.buf, len);
+	rdist += dist;
 	uart_wait_dma(d_port->port);
 	len = num2str_dec(dist, d_port->buf, 16);
 	d_port->buf[len] = 0x0d;
@@ -84,6 +86,7 @@ static int laser_measure_sync()
 	if (len == -1)
 		goto close_out;
 	dist = dist_decode(l_port.buf, len);
+	rdist += dist;
 	uart_wait_dma(d_port->port);
 	len = num2str_dec(dist, d_port->buf, 16);
 	d_port->buf[len] = 0x0d;
@@ -96,8 +99,38 @@ static int laser_measure_sync()
 	memcpy(d_port->buf, l_port.buf, len);
 	uart_write(d_port->port, d_port->buf, len-1, 0);
 close_out:
-	laser_op(&l_close);
-	return dist;
+	len = laser_op(&l_close);
+	uart_wait_dma(d_port->port);
+	memcpy(d_port->buf, l_port.buf, len);
+	uart_write(d_port->port, d_port->buf, len-1, 0);
+	
+	return (rdist + 10) / 20;
+}
+
+static void report_error(struct laser_beam *lb)
+{
+	static const char errmsg[] = "UART Laser timeout, op: ";
+	int len;
+
+	len = strlen(errmsg);
+	uart_wait_dma(d_port->port);
+	memcpy(d_port->buf, errmsg, len);
+	d_port->buf[len] = 0x0d;
+	switch (lb->stage) {
+	case 1:
+		d_port->buf[len-1] = 'O';
+		break;
+	case 3:
+		d_port->buf[len-1] = 'S';
+		break;
+	case 5:
+		d_port->buf[len-1] = 'N';
+		break;
+	case 7:
+		d_port->buf[len-1] = 'C';
+		break;
+	}
+	uart_write(d_port->port, d_port->buf, len+1, 0);
 }
 
 static void laser_measure(struct timer_task *slot)
@@ -116,8 +149,14 @@ static void laser_measure(struct timer_task *slot)
 		len = uart_read_expect(l_port.port, l_port.buf, 32);
 		lb->ocnt++;
 		if (len == l_open.explen && memcmp(l_port.buf,
-					l_open.cmprsp, l_open.cmplen) == 0)
+					l_open.cmprsp, l_open.cmplen) == 0) {
 			lb->stage++;
+			uart_wait_dma(d_port->port);
+			len = num2str_dec(lb->ocnt, d_port->buf, 16);
+			d_port->buf[len] = 'O';
+			d_port->buf[len+1] = 0x0d;
+			uart_write(d_port->port, d_port->buf, len+2, 0);
+		}
 		break;
 	case 2:
 		uart_write_cmd_expect(l_port.port, l_sm.cmd, l_sm.explen);
@@ -129,8 +168,13 @@ static void laser_measure(struct timer_task *slot)
 		lb->ocnt++;
 		if (len == l_sm.explen && memcmp(l_port.buf,
 					l_sm.cmprsp, l_sm.cmplen) == 0) {
-			lb->dist = dist_decode(l_port.buf, len);
+			lb->dist = (dist_decode(l_port.buf, len) + 5) / 10;
 			lb->stage++;
+			uart_wait_dma(d_port->port);
+			len = num2str_dec(lb->ocnt, d_port->buf, 16);
+			d_port->buf[len] = 'S';
+			d_port->buf[len+1] = 0x0d;
+			uart_write(d_port->port, d_port->buf, len+2, 0);
 		}
 		break;
 	case 4:
@@ -164,19 +208,20 @@ static void laser_measure(struct timer_task *slot)
 		break;
 	}
 	if (lb->ocnt == 20) {
+		report_error(lb);
 		task_slot_suspend(slot);
 	}
 	task_slot_schedule_csec(slot, nt);
 }
 
-struct laser_beam * laser_init(int csec, struct uart_param *dport)
+struct laser_beam * laser_init(int csec)
 {
 	uart_open(LUART_PORT);
 	l_port.port = LUART_PORT;
 	l_port.pos = 0;
-	d_port = dport;
+	d_port = &dbg_uart;
 	beam.dist = laser_measure_sync();
 	beam.stage = 0;
-	beam.slot = task_slot_setup(laser_measure, &beam, csec, 0);
+	beam.slot = 0; //task_slot_setup(laser_measure, &beam, csec, 1);
 	return &beam;
 }
