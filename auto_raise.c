@@ -145,9 +145,11 @@ static struct global_control g_ctrl = {0, 0};
 
 void __attribute__((noreturn)) main(void)
 {
+	int len, isr_count;
+
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
-	tm4c_gpio_setup(GPIOC, 0, GPIO_PIN_4, 0);
+	tm4c_gpio_setup(GPIOC, GPIO_PIN_4, 0, GPIO_PIN_4);
 	tm4c_gpio_setup(GPIOD, 0, 0, 0);
 	tm4c_gpio_setup(GPIOF, 0, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1, 0);
 	tm4c_setup();
@@ -171,6 +173,13 @@ void __attribute__((noreturn)) main(void)
 			if (memcmp(dbg_uart.buf, RESET, 5) == 0) {
 				uart_wait(0);
 				tm4c_reset();
+			}
+			if (memcmp(dbg_uart.buf, "BuPr", 4) == 0) {
+				memcpy(dbg_uart.buf, "Button Press: ", 14);
+				isr_count = tm4c_gpio_isrtimes(GPIOC);
+				len = num2str_dec(isr_count, dbg_uart.buf+14, 8);
+				dbg_uart.buf[len+14] = 0x0d;
+				uart_write(dbg_uart.port, dbg_uart.buf, len+15, 0);
 			}
 			dbg_uart.pos = 0;
 		}

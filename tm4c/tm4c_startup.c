@@ -88,7 +88,7 @@ void (* const g_pfnVectors[])(void) =
 	IntDefaultHandler,			// GPIO Port A
 	IntDefaultHandler,			// GPIO Port B
 	gpioc_isr,			// GPIO Port C
-	gpiod_isr,			// GPIO Port D
+	IntDefaultHandler,			// GPIO Port D
 	IntDefaultHandler,			// GPIO Port E
 	uart0_isr,				// UART0 Rx and Tx
 	uart1_isr,			// UART1 Rx and Tx

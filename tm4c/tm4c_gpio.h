@@ -10,14 +10,23 @@
 enum GPIOPORT { GPIOA = 0, GPIOB = 1, GPIOC = 2, GPIOD = 3, GPIOE = 4, GPIOF = 5};
 struct gpio_port {
 	uint32_t base;
-	uint32_t mis;
+	uint32_t isr_nums;
+	uint32_t p0:4;
+	uint32_t p1:4;
+	uint32_t p2:4;
+	uint32_t p3:4;
+	uint32_t p4:4;
+	uint32_t p5:4;
+	uint32_t p6:4;
+	uint32_t p7:4;
 };
 
 
 void gpioc_isr(void);
-void gpiod_isr(void);
 
 void tm4c_gpio_setup(enum GPIOPORT port, uint8_t inps, uint8_t outps, uint8_t intrps);
 void tm4c_gpio_write(enum GPIOPORT port, uint8_t pins, int on_off);
+int  tm4c_gpio_read(enum GPIOPORT port, uint8_t pins);
+int  tm4c_gpio_isrtimes(enum GPIOPORT port);
 
 #endif /* TM4C_GPIO_DSCAO__ */

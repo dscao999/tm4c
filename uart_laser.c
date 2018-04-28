@@ -136,7 +136,7 @@ static void report_error(struct laser_beam *lb)
 static void laser_measure(struct timer_task *slot)
 {
 	struct laser_beam *lb = slot->data;
-	int len;
+	int len, dist;
 
 	switch(lb->stage) {
 	case 0:
@@ -163,10 +163,11 @@ static void laser_measure(struct timer_task *slot)
 		lb->ocnt++;
 		if (len == l_sm.explen && memcmp(l_port.buf,
 					l_sm.cmprsp, l_sm.cmplen) == 0) {
-			lb->dist = (dist_decode(l_port.buf, len) + 5) / 10;
+			dist = dist_decode(l_port.buf, len);
+			lb->dist = (dist + 5) / 10;
 			lb->stage++;
 			uart_wait_dma(d_port->port);
-			len = num2str_dec(lb->dist, d_port->buf, 16);
+			len = num2str_dec(dist, d_port->buf, 16);
 			d_port->buf[len] = 0x0d;
 			uart_write(d_port->port, d_port->buf, len+1, 0);
 		}
