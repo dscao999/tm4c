@@ -66,7 +66,7 @@ struct global_control {
 	struct laser_beam *lb;
 	struct disp_blink *db;
 	uint8_t in_motion;
-	volatile uint8_t btn_pressed;
+	uint8_t gpioc_pin4;
 };
 
 static int motor_running(struct global_control *g_ctrl)
@@ -76,30 +76,33 @@ static int motor_running(struct global_control *g_ctrl)
 
 static void motor_start(struct global_control *g_ctrl)
 {
-	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 1);
 	g_ctrl->in_motion = 1;
-	g_ctrl->btn_pressed = 0;
-	laser_speedup(g_ctrl->lb, 1);
+//	laser_speedup(g_ctrl->lb, 1);
 }
 
 static void motor_stop(struct global_control *g_ctrl)
 {
-	g_ctrl->btn_pressed = 0;
 	g_ctrl->in_motion = 0;
-	tm4c_gpio_write(GPIOC, GPIO_PIN_4, 0);
-	laser_speedup(g_ctrl->lb, -1);
+//	laser_speedup(g_ctrl->lb, -1);
 }
 
 struct uart_param dbg_uart;
 static int check_key_pressed(struct global_control *g_ctrl)
 {
+	int pined, retv;
+
+	retv = 0;
 	if (g_ctrl->in_motion)
-		return 0;
-	if (dbg_uart.pos > 0) {
-		g_ctrl->btn_pressed = 1;
-		dbg_uart.pos = 0;
-	}
-	return g_ctrl->btn_pressed;
+		return retv;
+	pined = tm4c_gpio_isrnum(GPIOC, GPIO_PIN_4);
+	if (pined == ((g_ctrl->gpioc_pin4 + 1) & 0x0f))
+		retv = 1;
+	else if (pined == ((g_ctrl->gpioc_pin4 + 2) & 0x0f)) {
+		retv = 2;
+		g_ctrl->gpioc_pin4 = pined;
+	} else
+		g_ctrl->gpioc_pin4 = pined;
+	return retv;
 }
 
 static int position_match(struct global_control *g_ctrl)
@@ -123,7 +126,7 @@ static void global_task(struct global_control *gc)
 				blink_taxing(gc->db);
 			}
 		} else {
-			if (check_key_pressed(gc)) {
+			if (check_key_pressed(gc) == 2) {
 				blink_enlong(gc->db, 600);
 				motor_start(gc);
 			}

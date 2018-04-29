@@ -91,26 +91,28 @@ void tm4c_gpio_setup(enum GPIOPORT port, uint8_t inps, uint8_t outps, uint8_t in
 
 static void gpio_isr(struct gpio_port *gpio)
 {
-	int mis;
+	int mis, icr;
 
-	mis = HWREG(gpio->base+GPIO_O_MIS);
-	HWREG(gpio->base+GPIO_O_ICR) |= (mis & 0x0ff);
+	mis = HWREG(gpio->base+GPIO_O_MIS) & 0x0ff;
+	icr = HWREG(gpio->base+GPIO_O_ICR);
+	HWREG(gpio->base+GPIO_O_ICR) = (icr & 0xffffff00) | mis;
 	if (mis & 0x01)
-		gpio->p0++;
+		gpio->pinisr.isr4.p0++;
 	if ((mis >> 1) & 0x01)
-		gpio->p1++;
+		gpio->pinisr.isr4.p1++;
 	if ((mis >> 2) & 0x01)
-		gpio->p2++;
+		gpio->pinisr.isr4.p2++;
 	if ((mis >> 3) & 0x01)
-		gpio->p3++;
+		gpio->pinisr.isr4.p3++;
 	if ((mis >> 4) & 0x01)
-		gpio->p4++;
+		gpio->pinisr.isr4.p4++;
 	if ((mis >> 5) & 0x01)
-		gpio->p5++;
+		gpio->pinisr.isr4.p5++;
 	if ((mis >> 6) & 0x01)
-		gpio->p6++;
+		gpio->pinisr.isr4.p6++;
 	if ((mis >> 7) & 0x01)
-		gpio->p7++;
+		gpio->pinisr.isr4.p7++;
+	gpio->isr_nums++;
 }
 
 void gpioc_isr(void)
@@ -118,7 +120,6 @@ void gpioc_isr(void)
 	struct gpio_port *gpio = gpioms+GPIOC;
 
 	gpio_isr(gpio);
-	gpio->isr_nums++;
 }
 
 void tm4c_gpio_write(enum GPIOPORT port, uint8_t pins, int on_off)
@@ -130,16 +131,25 @@ void tm4c_gpio_write(enum GPIOPORT port, uint8_t pins, int on_off)
 	ROM_GPIOPinWrite(gpio->base, pins, v);
 }
 
-int tm4c_gpio_read(enum GPIOPORT port, uint8_t pins)
-{
-	struct gpio_port *gpio = gpioms+port;
-
-	return ROM_GPIOPinRead(gpio->base, pins);
-}
-
 int  tm4c_gpio_isrtimes(enum GPIOPORT port)
 {
 	struct gpio_port *gpio = gpioms+port;
 	
 	return gpio->isr_nums;
+}
+
+int  tm4c_gpio_isrnum(enum GPIOPORT port, uint8_t pin)
+{
+	struct gpio_port *gpio = gpioms + port;
+	int idx;
+
+	idx = 0;
+	while ((pin & 0x01) == 0 && idx < 8) {
+		idx++;
+		pin >>= 1;
+	}
+	if (idx < 8)
+		return ((gpio->pinisr.isr32) >> (idx*4)) & 0x0f;
+	else
+		return 0;
 }
