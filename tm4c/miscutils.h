@@ -2,6 +2,9 @@
 #define MISCUTILS_DSCAO__
 #include <stdint.h>
 
+#define likely(x)  __builtin_expect((x), 1)
+#define unlikely(x) __builtin_expect((x), 0)
+
 static inline int is_hexdigit(char c)
 {
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||

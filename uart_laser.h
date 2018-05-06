@@ -30,4 +30,7 @@ static inline int laser_speedup(struct laser_beam *lb, int up)
 	return lastc;
 }
 
+int laser_quick(struct laser_beam *lb);
+int laser_normal(struct laser_beam *lb);
+
 #endif  /* UART_LASER_DSCAO__ */

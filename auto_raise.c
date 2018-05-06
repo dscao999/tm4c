@@ -67,23 +67,17 @@ struct global_control {
 	struct disp_blink *db;
 	uint8_t in_motion;
 	uint8_t gpioc_pin4;
+	uint8_t quick;
 };
-
-static int motor_running(struct global_control *g_ctrl)
-{
-	return g_ctrl->in_motion;
-}
 
 static void motor_start(struct global_control *g_ctrl)
 {
 	g_ctrl->in_motion = 1;
-//	laser_speedup(g_ctrl->lb, 1);
 }
 
 static void motor_stop(struct global_control *g_ctrl)
 {
 	g_ctrl->in_motion = 0;
-//	laser_speedup(g_ctrl->lb, -1);
 }
 
 struct uart_param dbg_uart;
@@ -120,11 +114,13 @@ static void global_task(struct global_control *gc)
 		qeipos_dect_reset(gc->qs);
 	}
 	if (blink_ing(gc->db)) {
-		if (motor_running(gc)) {
+		if (gc->in_motion) {
 			if (position_match(gc)) {
 				motor_stop(gc);
 				blink_taxing(gc->db);
 			}
+			if (!gc->quick)
+				gc->quick = laser_quick(gc->lb);
 		} else {
 			if (check_key_pressed(gc) == 2) {
 				blink_enlong(gc->db, 600);
@@ -141,6 +137,8 @@ static void global_task(struct global_control *gc)
 				ssi_display_int(laser_dist(gc->lb));
 		} else if (ssi_display_get() != qeipos_pos(gc->qs))
 			ssi_display_int(qeipos_pos(gc->qs));
+		if (gc->quick)
+			gc->quick = !laser_normal(gc->lb);
 	}
 }
 

@@ -27,6 +27,11 @@ static inline void task_slot_immediate(struct timer_task *slot)
 	slot->tick = tm4c_tick_after(0);
 }
 
+static inline void task_slot_func(struct timer_task *slot, task_fun_p task)
+{
+	slot->task = task;
+}
+
 static inline void task_slot_suspend(struct timer_task *slot)
 {
 	slot->hang = 1;

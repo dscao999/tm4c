@@ -129,6 +129,9 @@ static void report_error(struct laser_beam *lb)
 	case 7:
 		d_port->buf[len-1] = 'C';
 		break;
+	case 9:
+		d_port->buf[len-1] = 'F';
+		break;
 	}
 	uart_write(d_port->port, d_port->buf, len+1, 0);
 }
@@ -151,6 +154,7 @@ static void laser_measure(struct timer_task *slot)
 		if (len == l_open.explen && memcmp(l_port.buf,
 					l_open.cmprsp, l_open.cmplen) == 0)
 			lb->stage++;
+		slot->csec = 1;
 		break;
 	case 2:
 		uart_write_cmd_expect(l_port.port, l_sm.cmd, l_sm.explen);
@@ -171,6 +175,7 @@ static void laser_measure(struct timer_task *slot)
 			d_port->buf[len] = 0x0d;
 			uart_write(d_port->port, d_port->buf, len+1, 0);
 		}
+		slot->csec = 1;
 		break;
 	case 4:
 		uart_write_cmd_expect(l_port.port, l_sn.cmd, l_sn.explen);
@@ -188,9 +193,11 @@ static void laser_measure(struct timer_task *slot)
 			memcpy(d_port->buf, l_port.buf, len);
 			uart_write(d_port->port, d_port->buf, len-1, 0);
 		}
+		slot->csec = 1;
 		break;
 	case 6:
 		uart_write_cmd_expect(l_port.port, l_close.cmd, l_close.explen);
+		slot->csec = 3;
 		lb->ocnt = 0;
 		lb->stage++;
 		break;
@@ -204,7 +211,8 @@ static void laser_measure(struct timer_task *slot)
 			memcpy(d_port->buf, l_port.buf, len);
 			uart_write(d_port->port, d_port->buf, len, 0);
 			slot->csec = lb->csec;
-		}
+		} else
+			slot->csec = 1;
 		break;
 	}
 	if (lb->ocnt == 10) {
@@ -224,4 +232,64 @@ struct laser_beam * laser_init(int csec)
 	beam.csec = csec;
 	beam.slot = task_slot_setup(laser_measure, &beam, csec, 1);
 	return &beam;
+}
+
+static void laser_quick_measure(struct timer_task *slot)
+{
+	struct laser_beam *lb = slot->data;
+	int len, dist;
+
+	switch(lb->stage) {
+	case 8:
+		uart_write_cmd_expect(l_port.port, l_fm.cmd, l_fm.explen);
+		slot->csec = 2;
+		lb->ocnt = 0;
+		lb->stage++;
+		break;
+	case 9:
+		len = uart_read_expect(l_port.port, l_port.buf, 32);
+		lb->ocnt++;
+		if (len == l_fm.explen && memcmp(l_port.buf,
+					l_fm.cmprsp, l_fm.cmplen) == 0) {
+			dist = dist_decode(l_port.buf, len);
+			lb->dist = (dist + 5) / 10;
+			lb->stage = 8;
+			uart_wait_dma(d_port->port);
+			len = num2str_dec(dist, d_port->buf, 16);
+			d_port->buf[len] = 0x0d;
+			uart_write(d_port->port, d_port->buf, len+1, 0);
+		}
+		slot->csec = 1;
+		break;
+	}
+	if (lb->ocnt == 10) {
+		report_error(lb);
+		task_slot_suspend(slot);
+	}
+}
+
+int laser_quick(struct laser_beam *lb)
+{
+	if (lb->stage == 0) {
+		task_slot_immediate(lb->slot);
+		return 0;
+	}
+	if (lb->stage % 2 != 0)
+		return 0;	
+	lb->slot->csec = 2;
+	lb->stage = 8;
+	task_slot_func(lb->slot, laser_quick_measure);
+	task_slot_immediate(lb->slot);
+	return 1;
+}
+
+int laser_normal(struct laser_beam *lb)
+{
+	if (lb->stage % 2 != 0)
+		return 0;
+	lb->slot->csec = lb->csec;
+	lb->stage = 2;
+	task_slot_func(lb->slot, laser_measure);
+	task_slot_immediate(lb->slot);
+	return 1;
 }
