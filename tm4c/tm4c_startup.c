@@ -31,6 +31,7 @@
 #include "tm4c_qei.h"
 #include "tm4c_gpio.h"
 #include "tm4c_ssi.h"
+#include "tm4c_pwm.h"
 
 //*****************************************************************************
 //
@@ -95,7 +96,7 @@ void (* const g_pfnVectors[])(void) =
 	ssi0_isr,			// SSI0 Rx and Tx
 	IntDefaultHandler,			// I2C0 Master and Slave
 	IntDefaultHandler,			// PWM Fault
-	IntDefaultHandler,			// PWM Generator 0
+	pwm_0_gen_0_intr,			// PWM Generator 0
 	IntDefaultHandler,			// PWM Generator 1
 	IntDefaultHandler,			// PWM Generator 2
 	qei0_isr,				// Quadrature Encoder 0

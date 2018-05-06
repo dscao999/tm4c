@@ -31,6 +31,7 @@
 #include "tm4c_dma.h"
 #include "tm4c_qei.h"
 #include "tm4c_ssi.h"
+#include "tm4c_pwm.h"
 #include "ssi_display.h"
 #include "uart_laser.h"
 #include "uart_op.h"
@@ -65,18 +66,26 @@ struct global_control {
 	struct qeishot *qs;
 	struct laser_beam *lb;
 	struct disp_blink *db;
+	struct tm4c_pwm *pwm;
 	uint8_t in_motion;
 	uint8_t gpioc_pin4;
 	uint8_t quick;
 };
 
+static int motor_init(struct global_control *gc)
+{
+	return tm4c_pwm_set(gc->pwm, 100, 0);
+}
+
 static void motor_start(struct global_control *g_ctrl)
 {
 	g_ctrl->in_motion = 1;
+	tm4c_pwm_start(g_ctrl->pwm, 0);
 }
 
 static void motor_stop(struct global_control *g_ctrl)
 {
+	tm4c_pwm_stop(g_ctrl->pwm, 0);
 	g_ctrl->in_motion = 0;
 }
 
@@ -146,7 +155,8 @@ static struct global_control g_ctrl = {0, 0};
 
 void __attribute__((noreturn)) main(void)
 {
-	int len, isr_count;
+	int len;
+	uint32_t isr_count;
 
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
@@ -161,26 +171,37 @@ void __attribute__((noreturn)) main(void)
 	uart_open(0);
 	dbg_uart.port = 0;
 	dbg_uart.pos= 0;
-	uart_write(0, hello, strlen(hello), 1);
 
+	g_ctrl.pwm = tm4c_pwm_init(0);
 	g_ctrl.lb = laser_init(50);
 	g_ctrl.qs = qeipos_setup(laser_dist(g_ctrl.lb));
 	g_ctrl.db = blink_init();
 	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
 	g_ctrl.db->q_pos = &g_ctrl.qs->qeipos;
+	motor_init(&g_ctrl);
+	uart_write(0, hello, strlen(hello), 1);
 	while(1) {
 		task_execute();
 		if (uart_op(&dbg_uart)) {
-			if (memcmp(dbg_uart.buf, RESET, 5) == 0) {
-				uart_wait(0);
+			len = 0;
+			if (memcmp(dbg_uart.buf, RESET, 5) == 0)
 				tm4c_reset();
-			}
-			if (memcmp(dbg_uart.buf, "BuPr", 4) == 0) {
+			else if (memcmp(dbg_uart.buf, "BTNxInfo", 8) == 0) {
 				memcpy(dbg_uart.buf, "Button Press: ", 14);
 				isr_count = tm4c_gpio_isrtimes(GPIOC);
 				len = num2str_dec(isr_count, dbg_uart.buf+14, 8);
 				dbg_uart.buf[len+14] = 0x0d;
-				uart_write(dbg_uart.port, dbg_uart.buf, len+15, 0);
+				len += 15;
+			} else if (memcmp(dbg_uart.buf, "PWMxInfo", 8) == 0) {
+				memcpy(dbg_uart.buf, "PWM Intrs: ", 11);
+				isr_count = tm4c_pwm_get_intrs(g_ctrl.pwm, 0);
+				len = num2str_dec(isr_count, dbg_uart.buf+11, 8);
+				dbg_uart.buf[len+11] = 0x0d;
+				len += 12;
+			}
+			if (len) {
+				uart_wait_dma(0);
+				uart_write(dbg_uart.port, dbg_uart.buf, len, 0);
 			}
 			dbg_uart.pos = 0;
 		}
