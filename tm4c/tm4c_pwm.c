@@ -79,10 +79,10 @@ struct tm4c_pwm * tm4c_pwm_init(uint32_t mpwm)
 	return pwm;
 }
 
-int tm4c_pwm_set(struct tm4c_pwm *pwm, int freq, int gen)
+int tm4c_pwm_set(struct tm4c_pwm *pwm, int gen, int freq)
 {
-	uint32_t count;
-	uint32_t genbase;
+	uint32_t count, genbase, act_a, int_a, gen_int;
+	int intr_num;
 
 	count = pwmfreq / freq;
 	if (count > 0x0ffff)
@@ -91,15 +91,43 @@ int tm4c_pwm_set(struct tm4c_pwm *pwm, int freq, int gen)
 	switch(gen) {
 	case 0:
 		genbase = PWM_GEN_0_OFFSET;
+		act_a = PWM_0_GENA_ACTCMPAD_ZERO|PWM_0_GENA_ACTLOAD_ONE;
+		int_a = PWM_0_INTEN_INTCNTZERO;
+		gen_int = PWM_INT_GEN_0;
+		if (pwm == pwmm)
+			intr_num = INT_PWM0_0;
+		else
+			intr_num = INT_PWM1_0;
 		break;
 	case 1:
 		genbase = PWM_GEN_1_OFFSET;
+		act_a = PWM_1_GENA_ACTCMPAD_ZERO|PWM_1_GENA_ACTLOAD_ONE;
+		int_a = PWM_1_INTEN_INTCNTZERO;
+		gen_int = PWM_INT_GEN_1;
+		if (pwm == pwmm)
+			intr_num = INT_PWM0_1;
+		else
+			intr_num = INT_PWM1_1;
 		break;
 	case 2:
 		genbase = PWM_GEN_2_OFFSET;
+		act_a = PWM_2_GENA_ACTCMPAD_ZERO|PWM_2_GENA_ACTLOAD_ONE;
+		int_a = PWM_2_INTEN_INTCNTZERO;
+		gen_int = PWM_INT_GEN_2;
+		if (pwm == pwmm)
+			intr_num = INT_PWM0_2;
+		else
+			intr_num = INT_PWM1_2;
 		break;
 	case 3:
 		genbase = PWM_GEN_3_OFFSET;
+		act_a = PWM_3_GENA_ACTCMPAD_ZERO|PWM_3_GENA_ACTLOAD_ONE;
+		int_a = PWM_3_INTEN_INTCNTZERO;
+		gen_int = PWM_INT_GEN_3;
+		if (pwm == pwmm)
+			intr_num = INT_PWM0_3;
+		else
+			intr_num = INT_PWM1_3;
 		break;
 	default:
 		return 2;
@@ -108,11 +136,10 @@ int tm4c_pwm_set(struct tm4c_pwm *pwm, int freq, int gen)
 	HWREG(pwm->base+genbase+PWM_O_X_LOAD) = count;
 	HWREG(pwm->base+genbase+PWM_O_X_CMPA) = (count >> 1);
 	HWREG(pwm->base+genbase+PWM_O_X_GENB) = 0;
-	HWREG(pwm->base+genbase+PWM_O_X_GENA) = PWM_0_GENA_ACTCMPAD_ZERO| \
-					PWM_0_GENA_ACTLOAD_ONE;
-	HWREG(pwm->base+genbase+PWM_O_X_INTEN) = PWM_0_INTEN_INTCNTZERO;
-	HWREG(pwm->base+PWM_O_INTEN) |= PWM_INT_GEN_0;
-	ROM_IntEnable(INT_PWM0_0);
+	HWREG(pwm->base+genbase+PWM_O_X_GENA) = act_a;
+	HWREG(pwm->base+genbase+PWM_O_X_INTEN) = int_a;
+	HWREG(pwm->base+PWM_O_INTEN) |= gen_int;
+	ROM_IntEnable(intr_num);
 
 	return 0;
 }
@@ -132,4 +159,35 @@ void pwm_0_gen_0_intr(void)
 
 	pwm_intr(pwm, PWM_GEN_0_OFFSET);
 	pwm->intrs[0] += 1;
+}
+
+void tm4c_pwm_setfreq(struct tm4c_pwm *pwm, int gen, int freq)
+{
+	int gbase, count, sync;
+
+	switch(gen) {
+	case 0:
+		gbase = PWM_GEN_0_OFFSET;
+		sync = 1;
+		break;
+	case 1:
+		gbase = PWM_GEN_1_OFFSET;
+		sync = 2;
+		break;
+	case 2:
+		gbase = PWM_GEN_2_OFFSET;
+		sync = 4;
+		break;
+	case 3:
+		gbase = PWM_GEN_3_OFFSET;
+		sync = 8;
+		break;
+	default:
+		return;
+	}
+	count = pwmfreq / freq;
+	HWREG(pwm->base+gbase+PWM_O_X_LOAD) = count;
+	HWREG(pwm->base+gbase+PWM_O_X_CMPA) = (count >> 1);
+	if ((HWREG(pwm->base+gbase+PWM_O_X_CTL) & 1) == 0)
+		HWREG(pwm->base+PWM_O_SYNC) = sync;
 }

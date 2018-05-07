@@ -350,6 +350,12 @@ void uart_wait_dma(int port)
 		tm4c_waitint();
 }
 
+int uart_in_dma(int port)
+{
+	struct uart_port *uart = uartms + port;
+	return uart->txdma || uart->rxdma;
+}
+
 void uart_wait(int port)
 {
 	struct uart_port *uart = uartms + port;

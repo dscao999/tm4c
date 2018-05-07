@@ -26,6 +26,7 @@ void uart_write_cmd_expect(int port, const char cmd, int explen);
 
 int uart_read(int port, char *buf, int len, int wait);
 int uart_read_expect(int port, char *buf, int len);
+int uart_in_dma(int port);
 void uart_wait_dma(int port);
 void uart_wait(int port);
 

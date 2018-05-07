@@ -10,7 +10,9 @@ struct tm4c_pwm {
 
 struct tm4c_pwm * tm4c_pwm_init(uint32_t mpwm);
 
-int tm4c_pwm_set(struct tm4c_pwm *pwm, int freq, int gen);
+int tm4c_pwm_set(struct tm4c_pwm *pwm, int gen, int freq);
+
+void tm4c_pwm_setfreq(struct tm4c_pwm *pwm, int gen, int freq);
 
 static inline void tm4c_pwm_start(struct tm4c_pwm *pwm, int gen)
 {

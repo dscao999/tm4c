@@ -72,9 +72,9 @@ struct global_control {
 	uint8_t quick;
 };
 
-static int motor_init(struct global_control *gc)
+static int motor_init(struct global_control *gc, int freq)
 {
-	return tm4c_pwm_set(gc->pwm, 100, 0);
+	return tm4c_pwm_set(gc->pwm, 0, freq);
 }
 
 static void motor_start(struct global_control *g_ctrl)
@@ -155,8 +155,8 @@ static struct global_control g_ctrl = {0, 0};
 
 void __attribute__((noreturn)) main(void)
 {
-	int len;
 	uint32_t isr_count;
+	uint16_t len = 0;
 
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
@@ -178,12 +178,11 @@ void __attribute__((noreturn)) main(void)
 	g_ctrl.db = blink_init();
 	g_ctrl.db->l_pos = &g_ctrl.lb->dist;
 	g_ctrl.db->q_pos = &g_ctrl.qs->qeipos;
-	motor_init(&g_ctrl);
+	motor_init(&g_ctrl, 600);
 	uart_write(0, hello, strlen(hello), 1);
 	while(1) {
 		task_execute();
-		if (uart_op(&dbg_uart)) {
-			len = 0;
+		if (len == 0 && uart_op(&dbg_uart)) {
 			if (memcmp(dbg_uart.buf, RESET, 5) == 0)
 				tm4c_reset();
 			else if (memcmp(dbg_uart.buf, "BTNxInfo", 8) == 0) {
@@ -199,11 +198,11 @@ void __attribute__((noreturn)) main(void)
 				dbg_uart.buf[len+11] = 0x0d;
 				len += 12;
 			}
-			if (len) {
-				uart_wait_dma(0);
-				uart_write(dbg_uart.port, dbg_uart.buf, len, 0);
-			}
 			dbg_uart.pos = 0;
+		}
+		if (len != 0 && !uart_in_dma(0)) {
+			uart_write(dbg_uart.port, dbg_uart.buf, len, 0);
+			len = 0;
 		}
 		global_task(&g_ctrl);
 	}
