@@ -67,7 +67,7 @@ struct global_control {
 	struct laser_beam *lb;
 	struct disp_blink *db;
 	struct tm4c_pwm *pwm;
-	uint8_t in_motion;
+	uint8_t in_motion, dir, p_matched;
 	uint8_t gpioc_pin4;
 	uint8_t quick;
 };
@@ -80,6 +80,7 @@ static int motor_init(struct global_control *gc, int freq)
 static void motor_start(struct global_control *g_ctrl)
 {
 	g_ctrl->in_motion = 1;
+	tm4c_gpio_write(GPIOC, GPIO_PIN_7, g_ctrl->dir);
 	tm4c_pwm_start(g_ctrl->pwm, 0);
 }
 
@@ -160,7 +161,7 @@ void __attribute__((noreturn)) main(void)
 
 	tm4c_gpio_setup(GPIOA, 0, 0, 0);
 	tm4c_gpio_setup(GPIOB, 0, 0, 0);
-	tm4c_gpio_setup(GPIOC, GPIO_PIN_4, 0, GPIO_PIN_4);
+	tm4c_gpio_setup(GPIOC, GPIO_PIN_4, GPIO_PIN_7, GPIO_PIN_4);
 	tm4c_gpio_setup(GPIOD, 0, 0, 0);
 	tm4c_gpio_setup(GPIOF, 0, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1, 0);
 	tm4c_setup();
@@ -183,6 +184,7 @@ void __attribute__((noreturn)) main(void)
 	while(1) {
 		task_execute();
 		if (len == 0 && uart_op(&dbg_uart)) {
+			g_ctrl.dir ^= 1;
 			if (memcmp(dbg_uart.buf, RESET, 5) == 0)
 				tm4c_reset();
 			else if (memcmp(dbg_uart.buf, "BTNxInfo", 8) == 0) {
@@ -197,6 +199,11 @@ void __attribute__((noreturn)) main(void)
 				len = num2str_dec(isr_count, dbg_uart.buf+11, 8);
 				dbg_uart.buf[len+11] = 0x0d;
 				len += 12;
+			} else {
+				memcpy(dbg_uart.buf, "Motor Direction: ", 17);
+				len = num2str_dec(g_ctrl.dir, dbg_uart.buf+17, 8);
+				dbg_uart.buf[len+17] = 0x0d;
+				len += 18;
 			}
 			dbg_uart.pos = 0;
 		}

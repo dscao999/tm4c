@@ -75,7 +75,7 @@ void tm4c_gpio_setup(enum GPIOPORT port, uint8_t inps, uint8_t outps, uint8_t in
 		HWREG(gpio->base+GPIO_O_DEN) |= inps;
 	}
 	if (outps) {
-		ROM_GPIOPadConfigSet(gpio->base, outps, GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPD);
+		ROM_GPIOPadConfigSet(gpio->base, outps, GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_OD);
 		ROM_GPIODirModeSet(gpio->base, outps, GPIO_DIR_MODE_OUT);
 	}
 
